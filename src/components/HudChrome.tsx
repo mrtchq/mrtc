@@ -1,10 +1,12 @@
 import React from 'react';
-import { motion } from 'motion/react';
-import { Volume2, VolumeX } from 'lucide-react';
-import { formatSectorLabel, TOTAL_SLIDES } from '../utils/cognitiveEngine';
+import { motion, useSpring, useTransform, type MotionValue } from 'motion/react';
+import { ChevronLeft, ChevronRight, Volume2, VolumeX } from 'lucide-react';
+import { formatSectorLabel, PAGE_SECTIONS, TOTAL_SLIDES } from '../utils/cognitiveEngine';
 
 interface HeaderHudProps {
-  onLogoClick: () => void;
+  activeSlideIndex: number;
+  onSelectSlide: (index: number) => void;
+  parallaxProgress: MotionValue<number>;
   audioEnabled: boolean;
   onToggleAudio: () => void;
   eegBoosted: boolean;
@@ -19,21 +21,29 @@ const EEG_BARS = [
   { colorClass: 'bg-gold-400', keyframes: [0.4, 0.8, 0.6, 0.92, 0.4], duration: 1.15 },
 ];
 
-export function HeaderHud({ onLogoClick, audioEnabled, onToggleAudio, eegBoosted }: HeaderHudProps) {
+export function HeaderHud({
+  activeSlideIndex,
+  onSelectSlide,
+  parallaxProgress,
+  audioEnabled,
+  onToggleAudio,
+  eegBoosted,
+}: HeaderHudProps) {
+  const mappedProgress = useTransform(parallaxProgress, [0, 1], [1 / TOTAL_SLIDES, 1]);
+  const smoothProgress = useSpring(mappedProgress, { stiffness: 220, damping: 28, restDelta: 0.001 });
+
   return (
-    <header className="relative z-30 px-4 sm:px-6 py-3.5 flex items-center justify-between border-b border-gold-400/20 glass-hud">
+    <header className="relative z-30 shrink-0 h-16 px-4 sm:px-6 flex items-center justify-between gap-4 sm:gap-8 border-b border-gold-400/20 bg-[#080811]/90 backdrop-blur-md shadow-[0_4px_30px_rgba(0,0,0,0.65)]">
       {/* Brand / Split Logo */}
-      <motion.button
+      <button
         type="button"
-        onClick={onLogoClick}
-        whileHover={{ scale: 1.03 }}
-        whileTap={{ scale: 0.97 }}
-        aria-label="Return to MRTC BUILDS Home"
-        className="flex items-center space-x-3 cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400 rounded-xl p-1 -m-1"
+        onClick={() => onSelectSlide(0)}
+        aria-label="Return to MRTC BUILDS Overview"
+        className="flex items-center space-x-3 cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400 rounded-xl p-1 -m-1 shrink-0"
       >
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-gold-500 via-purple-600 to-chroma-magenta p-[1.5px] flex items-center justify-center shadow-lg shadow-gold-500/20">
+        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-gold-500 via-purple-600 to-chroma-magenta p-[1.5px] flex items-center justify-center shadow-lg shadow-gold-500/20 group-hover:scale-105 transition-transform">
           <div className="w-full h-full bg-space-950 rounded-[9px] flex items-center justify-center relative overflow-hidden">
-            <svg className="w-6 h-6" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+            <svg className="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 40 40" fill="none" aria-hidden="true">
               <motion.path
                 d="M19 6C13 6 8 11 8 18C8 22 10 25 12 28C14 31 16 34 19 35"
                 stroke="#f5b82e"
@@ -95,12 +105,39 @@ export function HeaderHud({ onLogoClick, audioEnabled, onToggleAudio, eegBoosted
           </div>
           <span className="rainbow-gradient-text font-black text-lg sm:text-xl tracking-wider">BUILDS</span>
         </div>
-      </motion.button>
+      </button>
+
+      {/* Horizontal Sector Navigation Links */}
+      <nav aria-label="Primary Navigation" className="hidden md:flex items-center gap-6">
+        {PAGE_SECTIONS.map((section, idx) => {
+          const isActive = idx === activeSlideIndex;
+          return (
+            <button
+              key={section.id}
+              type="button"
+              onClick={() => onSelectSlide(idx)}
+              aria-current={isActive ? 'step' : undefined}
+              className={`relative py-1.5 font-rajdhani text-sm tracking-widest uppercase whitespace-nowrap shrink-0 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400 rounded ${
+                isActive ? 'text-gold-300 font-bold' : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <span>{section.navLabel}</span>
+              {isActive && (
+                <motion.span
+                  layoutId="activeNavIndicator"
+                  transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+                  className="absolute left-0 right-0 -bottom-0.5 h-[2px] rounded-full bg-gradient-to-r from-gold-400 via-chroma-cyan to-chroma-magenta"
+                />
+              )}
+            </button>
+          );
+        })}
+      </nav>
 
       {/* EEG Spectrum & Audio Toggle */}
-      <div className="flex items-center space-x-3 md:space-x-4">
+      <div className="flex items-center space-x-3 shrink-0">
         <div
-          className={`hidden lg:flex items-center space-x-2 bg-space-950/90 px-3.5 py-1.5 rounded-full border transition-colors ${
+          className={`hidden xl:flex items-center space-x-2 bg-space-950/90 px-3.5 py-1.5 rounded-full border transition-colors ${
             eegBoosted ? 'border-gold-400 shadow-[0_0_16px_rgba(255,209,89,0.35)]' : 'border-purple-500/30'
           }`}
         >
@@ -138,7 +175,7 @@ export function HeaderHud({ onLogoClick, audioEnabled, onToggleAudio, eegBoosted
           whileTap={{ scale: 0.94 }}
           aria-pressed={audioEnabled}
           aria-label={audioEnabled ? 'Mute Synth Sound Effects' : 'Enable Synth Sound Effects'}
-          className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-space-850/90 border border-slate-700 hover:border-gold-400 transition-colors text-xs font-rajdhani tracking-wider text-slate-300 hover:text-white whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+          className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-space-850/90 border border-slate-700 hover:border-gold-400 transition-colors text-xs font-rajdhani tracking-wider text-slate-300 hover:text-white whitespace-nowrap shrink-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
           title="Toggle Synth Sound Effects"
         >
           {audioEnabled ? (
@@ -149,62 +186,86 @@ export function HeaderHud({ onLogoClick, audioEnabled, onToggleAudio, eegBoosted
           <span className="hidden sm:inline">{audioEnabled ? 'SFX: ON' : 'SFX: OFF'}</span>
         </motion.button>
       </div>
+
+      {/* Horizontal Carousel Progress Hairline */}
+      <motion.div
+        aria-hidden="true"
+        data-testid="carousel-progress-bar"
+        className="absolute bottom-0 left-0 right-0 h-[2px] origin-left bg-gradient-to-r from-gold-400 via-chroma-cyan to-chroma-magenta"
+        style={{ scaleX: smoothProgress }}
+      />
     </header>
   );
 }
 
 interface FooterHudProps {
-  currentSlide: number;
-  onJumpToSlide: (index: number) => void;
+  activeSlideIndex: number;
+  onSelectSlide: (index: number) => void;
+  onPrevSlide: () => void;
+  onNextSlide: () => void;
 }
 
-const SLIDE_NAMES = [
-  'Hero Overview',
-  'Dual-Hemisphere System',
-  'Interactive Co-Pilot Modes',
-  'Neural Bio-Metric Matrix',
-  'Request Early Access',
-];
-
-export function FooterHud({ currentSlide, onJumpToSlide }: FooterHudProps) {
+export function FooterHud({ activeSlideIndex, onSelectSlide, onPrevSlide, onNextSlide }: FooterHudProps) {
   return (
-    <footer className="relative z-30 px-4 sm:px-6 py-2.5 sm:py-3.5 border-t border-gold-400/20 glass-hud flex flex-row items-center justify-between gap-2.5">
-      <div className="flex items-center space-x-3 font-rajdhani text-xs tracking-widest text-slate-400">
+    <footer className="relative z-30 shrink-0 px-4 sm:px-6 py-3 sm:py-3.5 border-t border-gold-400/20 bg-[#080811]/90 backdrop-blur-md flex items-center justify-between gap-3">
+      {/* Sector Coordinates & Status */}
+      <div className="flex items-center space-x-3 font-rajdhani text-xs tracking-widest text-slate-400 shrink-0">
         <span data-testid="sector-display" className="gold-gradient-text font-bold font-orbitron tabular-nums whitespace-nowrap">
-          {formatSectorLabel(currentSlide, TOTAL_SLIDES)}
+          {formatSectorLabel(activeSlideIndex, TOTAL_SLIDES)}
         </span>
-        <span className="hidden md:inline text-slate-700">|</span>
-        <span className="hidden md:inline text-slate-300 whitespace-nowrap">DUAL-SYNAPSE OS v2.4</span>
+        <span className="hidden lg:inline text-slate-700">|</span>
+        <span className="hidden lg:inline text-slate-300 whitespace-nowrap">DUAL-SYNAPSE OS v2.4</span>
       </div>
 
-      <nav aria-label="Sector Pagination" className="flex items-center space-x-1.5 sm:space-x-2">
-        {Array.from({ length: TOTAL_SLIDES }).map((_, idx) => {
-          const isActive = idx === currentSlide;
-          return (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => onJumpToSlide(idx)}
-              aria-label={`Go to slide ${idx + 1}: ${SLIDE_NAMES[idx]}`}
-              aria-current={isActive ? 'step' : undefined}
-              className="relative h-5 px-1 flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400 rounded-full cursor-pointer"
-            >
-              <motion.span
-                layout
-                transition={{ type: 'spring', stiffness: 420, damping: 28 }}
-                className={`block h-2 rounded-full transition-colors ${
-                  isActive ? 'w-7 sm:w-8 bg-gold-400 shadow-[0_0_12px_rgba(255,209,89,0.7)]' : 'w-2 bg-slate-700 hover:bg-slate-500'
+      {/* Carousel Controls & Pagination Pills */}
+      <div className="flex items-center space-x-2 sm:space-x-3">
+        <motion.button
+          type="button"
+          onClick={onPrevSlide}
+          whileTap={{ scale: 0.9 }}
+          aria-label="Previous Sector"
+          className="p-1.5 rounded-lg bg-space-900/90 border border-slate-700/80 hover:border-gold-400 text-gold-300 hover:text-white transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+        >
+          <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+        </motion.button>
+
+        <div className="flex items-center space-x-2" role="tablist" aria-label="Sector Slides">
+          {PAGE_SECTIONS.map((section, idx) => {
+            const isActive = idx === activeSlideIndex;
+            return (
+              <button
+                key={section.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                aria-label={`Go to slide ${idx + 1}: ${section.navLabel}`}
+                onClick={() => onSelectSlide(idx)}
+                className={`h-2 rounded-full transition-all duration-300 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400 ${
+                  isActive
+                    ? 'w-8 bg-gradient-to-r from-gold-400 via-chroma-cyan to-chroma-magenta shadow-[0_0_10px_rgba(255,209,89,0.5)]'
+                    : 'w-2.5 bg-slate-700 hover:bg-slate-500'
                 }`}
               />
-            </button>
-          );
-        })}
-      </nav>
+            );
+          })}
+        </div>
 
-      <div className="hidden sm:flex font-rajdhani text-xs text-slate-400 tracking-wider items-center space-x-2 whitespace-nowrap">
+        <motion.button
+          type="button"
+          onClick={onNextSlide}
+          whileTap={{ scale: 0.9 }}
+          aria-label="Next Sector"
+          className="p-1.5 rounded-lg bg-space-900/90 border border-slate-700/80 hover:border-gold-400 text-gold-300 hover:text-white transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+        >
+          <ChevronRight className="w-4 h-4" aria-hidden="true" />
+        </motion.button>
+      </div>
+
+      {/* Keyboard & Swipe Shortcut Hint */}
+      <div className="hidden sm:flex font-rajdhani text-xs text-slate-400 tracking-wider items-center space-x-2 shrink-0">
         <span className="px-1.5 py-0.5 rounded bg-space-950 border border-slate-700 text-gold-300 text-[10px]">←</span>
         <span className="px-1.5 py-0.5 rounded bg-space-950 border border-slate-700 text-gold-300 text-[10px]">→</span>
-        <span>KEYS OR SWIPE TO NAVIGATE</span>
+        <span className="whitespace-nowrap">SWIPE OR KEYS TO NAVIGATE</span>
       </div>
     </footer>
   );

@@ -6,6 +6,7 @@ import { dispatchParticleBurst } from '../NeuralParticleField';
 import { TiltCard } from '../TiltCard';
 
 interface CoPilotModesSlideProps {
+  isActive: boolean;
   onSimulateProtocol: () => void;
 }
 
@@ -14,10 +15,10 @@ function ModeHologramSvg({ modeId, isSimulating }: { modeId: CognitiveModeSpec['
     return (
       <motion.svg
         key="task-anchor"
-        initial={{ opacity: 0, scale: 0.88, rotate: -6 }}
-        animate={{ opacity: 1, scale: isSimulating ? 1.06 : 1, rotate: 0 }}
-        exit={{ opacity: 0, scale: 0.9, rotate: 6 }}
-        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+        initial={{ opacity: 0, scale: 0.94 }}
+        animate={{ opacity: 1, scale: isSimulating ? 1.06 : 1 }}
+        exit={{ opacity: 0, scale: 0.96 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
         className="w-full h-64 drop-shadow-[0_0_25px_rgba(245,184,46,0.55)]"
         viewBox="0 0 400 320"
         fill="none"
@@ -158,45 +159,47 @@ function ModeHologramSvg({ modeId, isSimulating }: { modeId: CognitiveModeSpec['
     return (
       <motion.svg
         key="kaleidoscope-brain"
-        initial={{ opacity: 0, scale: 0.85, rotate: -15 }}
-        animate={{ opacity: 1, scale: isSimulating ? 1.07 : 1, rotate: 0 }}
-        exit={{ opacity: 0, scale: 0.88, rotate: 15 }}
-        transition={{ duration: 0.48, ease: [0.16, 1, 0.3, 1] }}
+        initial={{ opacity: 0, scale: 0.94 }}
+        animate={{ opacity: 1, scale: isSimulating ? 1.06 : 1 }}
+        exit={{ opacity: 0, scale: 0.96 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
         className="w-full h-64 drop-shadow-[0_0_25px_rgba(147,51,234,0.65)]"
         viewBox="0 0 400 320"
         fill="none"
         aria-hidden="true"
       >
-        <motion.circle
-          cx="200"
-          cy="170"
-          r="82"
-          stroke="url(#kaleidoGrad)"
-          strokeWidth="3.5"
-          strokeDasharray="10 6"
-          style={{ originX: '200px', originY: '170px' }}
-          animate={{ rotate: 360 }}
-          transition={{ duration: isSimulating ? 4 : 18, repeat: Infinity, ease: 'linear' }}
-        />
-        <motion.circle
-          cx="200"
-          cy="170"
-          r="46"
-          stroke="#ffd159"
-          strokeWidth="2.5"
-          strokeDasharray="6 4"
-          style={{ originX: '200px', originY: '170px' }}
-          animate={{ rotate: -360 }}
-          transition={{ duration: isSimulating ? 3 : 12, repeat: Infinity, ease: 'linear' }}
-        />
-        <motion.circle
-          cx="200"
-          cy="170"
-          r="18"
-          fill="#ec4899"
-          animate={{ scale: [1, 1.25, 1], opacity: [0.85, 1, 0.85] }}
-          transition={{ duration: 1.6, repeat: Infinity }}
-        />
+        <g transform="translate(200, 170)">
+          <motion.circle
+            cx="0"
+            cy="0"
+            r="82"
+            stroke="url(#kaleidoGrad)"
+            strokeWidth="3.5"
+            strokeDasharray="10 6"
+            style={{ transformOrigin: '0px 0px' }}
+            animate={{ rotate: 360 }}
+            transition={{ duration: isSimulating ? 4 : 18, repeat: Infinity, ease: 'linear' }}
+          />
+          <motion.circle
+            cx="0"
+            cy="0"
+            r="46"
+            stroke="#ffd159"
+            strokeWidth="2.5"
+            strokeDasharray="6 4"
+            style={{ transformOrigin: '0px 0px' }}
+            animate={{ rotate: -360 }}
+            transition={{ duration: isSimulating ? 3 : 12, repeat: Infinity, ease: 'linear' }}
+          />
+          <motion.circle
+            cx="0"
+            cy="0"
+            r="18"
+            fill="#ec4899"
+            animate={{ scale: [1, 1.25, 1], opacity: [0.85, 1, 0.85] }}
+            transition={{ duration: 1.6, repeat: Infinity }}
+          />
+        </g>
         <line x1="200" y1="50" x2="200" y2="90" stroke="#f5b82e" strokeWidth="3" strokeLinecap="round" />
         <line x1="200" y1="250" x2="200" y2="290" stroke="#10b981" strokeWidth="3" strokeLinecap="round" />
         <line x1="80" y1="170" x2="120" y2="170" stroke="#00e5ff" strokeWidth="3" strokeLinecap="round" />
@@ -250,10 +253,10 @@ function ModeHologramSvg({ modeId, isSimulating }: { modeId: CognitiveModeSpec['
   return (
     <motion.svg
       key="dopamine-pacer"
-      initial={{ opacity: 0, scale: 0.9 }}
+      initial={{ opacity: 0, scale: 0.94 }}
       animate={{ opacity: 1, scale: isSimulating ? 1.06 : 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
       className="w-full h-64 drop-shadow-[0_0_25px_rgba(16,185,129,0.55)]"
       viewBox="0 0 400 320"
       fill="none"
@@ -312,7 +315,7 @@ function ModeHologramSvg({ modeId, isSimulating }: { modeId: CognitiveModeSpec['
   );
 }
 
-export function CoPilotModesSlide({ onSimulateProtocol }: CoPilotModesSlideProps) {
+export function CoPilotModesSlide({ isActive, onSimulateProtocol }: CoPilotModesSlideProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [simStage, setSimStage] = useState<'idle' | 'syncing' | 'active'>('idle');
   const [pulseRingKey, setPulseRingKey] = useState(0);
@@ -350,15 +353,18 @@ export function CoPilotModesSlide({ onSimulateProtocol }: CoPilotModesSlideProps
         : 'SIMULATE PROTOCOL EXECUTION';
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+    <section
+      id="copilot-modes"
       aria-label="Interactive Co-Pilot Modes"
-      className="w-full h-full flex flex-col items-center px-11 sm:px-16 relative py-6 overflow-y-auto no-scrollbar"
+      className="slide-section min-w-full w-full h-full overflow-y-auto no-scrollbar flex flex-col items-center px-5 sm:px-14 md:px-20 relative py-6 sm:py-8"
     >
-      <div className="max-w-6xl w-full mx-auto my-auto">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-6">
+      <div className="my-auto max-w-6xl w-full mx-auto">
+        <motion.div
+          initial={false}
+          animate={isActive ? { opacity: 1, y: 0 } : { opacity: 0.72, y: 12 }}
+          transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+          className="flex flex-col md:flex-row md:items-end justify-between mb-6"
+        >
           <div>
             <span className="text-xs font-rajdhani tracking-[0.3em] uppercase text-gold-400">
               Section 03 · Adaptive Engine
@@ -401,14 +407,20 @@ export function CoPilotModesSlide({ onSimulateProtocol }: CoPilotModesSlideProps
               );
             })}
           </div>
-        </div>
+        </motion.div>
 
         {/* Mode Showcase Canvas */}
-        <TiltCard
-          variant="gold"
-          tiltMax={4}
-          className="rounded-2xl p-6 md:p-8 border border-gold-400/30 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center"
+        <motion.div
+          initial={false}
+          animate={isActive ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0.72, y: 12, scale: 0.98 }}
+          transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+          className="will-change-transform"
         >
+          <TiltCard
+            variant="gold"
+            tiltMax={4}
+            className="rounded-2xl p-6 md:p-8 border border-gold-400/30 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center"
+          >
           {/* Animated Hologram Panel */}
           <div className="lg:col-span-6 flex justify-center items-center relative py-4">
             <motion.div
@@ -440,8 +452,8 @@ export function CoPilotModesSlide({ onSimulateProtocol }: CoPilotModesSlideProps
               )}
             </AnimatePresence>
 
-            <div className="relative z-10 w-full max-w-sm flex items-center justify-center">
-              <AnimatePresence mode="wait">
+            <div className="relative z-10 w-full max-w-sm min-h-[16rem] flex items-center justify-center">
+              <AnimatePresence mode="wait" initial={false}>
                 <ModeHologramSvg
                   key={activeMode.id}
                   modeId={activeMode.id}
@@ -453,13 +465,13 @@ export function CoPilotModesSlide({ onSimulateProtocol }: CoPilotModesSlideProps
 
           {/* Dynamic Mode Specs & Telemetry */}
           <div className="lg:col-span-6 flex flex-col justify-center space-y-4">
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={activeMode.id}
-                initial={{ opacity: 0, x: 16 }}
+                initial={{ opacity: 0, x: 12 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -16 }}
-                transition={{ duration: 0.28 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={{ duration: 0.18 }}
               >
                 <span className="text-xs font-rajdhani tracking-[0.25em] text-gold-400 font-semibold">
                   {activeMode.protocolClass}
@@ -511,8 +523,9 @@ export function CoPilotModesSlide({ onSimulateProtocol }: CoPilotModesSlideProps
               </motion.button>
             </div>
           </div>
-        </TiltCard>
+          </TiltCard>
+        </motion.div>
       </div>
-    </motion.section>
+    </section>
   );
 }

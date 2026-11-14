@@ -2,10 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   MODES_DATA,
+  PAGE_SECTIONS,
   SYNAPSE_NODES,
   TOTAL_SLIDES,
   calculateParticlePoolBudget,
+  clampSlideIndex,
   formatSectorLabel,
+  getSlideIndexById,
+  resolveSwipeNavigation,
   validateWaitlistForm,
   wrapSlideIndex,
 } from './cognitiveEngine';
@@ -16,6 +20,29 @@ test('wrapSlideIndex wraps positively and negatively across 5 slides', () => {
   assert.equal(wrapSlideIndex(5, TOTAL_SLIDES), 0);
   assert.equal(wrapSlideIndex(-1, TOTAL_SLIDES), 4);
   assert.equal(wrapSlideIndex(-6, TOTAL_SLIDES), 4);
+});
+
+test('clampSlideIndex clamps within [0, total - 1]', () => {
+  assert.equal(clampSlideIndex(-2, 5), 0);
+  assert.equal(clampSlideIndex(2, 5), 2);
+  assert.equal(clampSlideIndex(8, 5), 4);
+});
+
+test('getSlideIndexById resolves section ids safely', () => {
+  assert.equal(getSlideIndexById('hero'), 0);
+  assert.equal(getSlideIndexById('copilot-modes'), 2);
+  assert.equal(getSlideIndexById('waitlist'), 4);
+  assert.equal(getSlideIndexById('unknown'), 0);
+});
+
+test('resolveSwipeNavigation advances or rewinds based on drag distance and velocity', () => {
+  assert.equal(resolveSwipeNavigation(-80, 0, 1, 5), 2);
+  assert.equal(resolveSwipeNavigation(80, 0, 1, 5), 0);
+  assert.equal(resolveSwipeNavigation(-15, -400, 2, 5), 3);
+  assert.equal(resolveSwipeNavigation(15, 400, 2, 5), 1);
+  assert.equal(resolveSwipeNavigation(-20, -100, 2, 5), 2);
+  assert.equal(resolveSwipeNavigation(-120, -500, 4, 5), 4);
+  assert.equal(resolveSwipeNavigation(120, 500, 0, 5), 0);
 });
 
 test('formatSectorLabel pads single digit sectors properly', () => {
@@ -56,10 +83,13 @@ test('calculateParticlePoolBudget scales safely for mobile and desktop viewports
   assert.ok(desktop.maxSparks > mobile.maxSparks);
 });
 
-test('MODES_DATA and SYNAPSE_NODES contain complete specs', () => {
+test('MODES_DATA, SYNAPSE_NODES, and PAGE_SECTIONS contain complete specs', () => {
   assert.equal(MODES_DATA.length, 3);
   for (const mode of MODES_DATA) {
     assert.equal(mode.metrics.length, 3);
   }
   assert.equal(SYNAPSE_NODES.length, 8);
+  assert.equal(PAGE_SECTIONS.length, 5);
 });
+
+

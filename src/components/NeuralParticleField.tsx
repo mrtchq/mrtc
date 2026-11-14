@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { motion, useMotionValue, useSpring } from 'motion/react';
+import { motion, useMotionValue, useSpring, useTransform, type MotionValue } from 'motion/react';
 import { calculateParticlePoolBudget } from '../utils/cognitiveEngine';
 
 interface BrandColor {
@@ -78,6 +78,7 @@ export function dispatchParticleBurst(x: number, y: number, count = 24, colorHex
 
 interface NeuralParticleFieldProps {
   isWarping: boolean;
+  parallaxProgress: MotionValue<number>;
 }
 
 const BOKEH_EMBERS = [
@@ -90,9 +91,14 @@ const BOKEH_EMBERS = [
   { left: '22%', top: '22%', size: 'w-2.5 h-2.5', color: '#ffd159', delay: 2.7, dx: 14, dy: -38 },
 ];
 
-export function NeuralParticleField({ isWarping }: NeuralParticleFieldProps) {
+export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParticleFieldProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const warpTargetRef = useRef(1);
+
+  const starParallaxSlowX = useTransform(parallaxProgress, [0, 1], [0, -110]);
+  const starParallaxMidX = useTransform(parallaxProgress, [0, 1], [0, -210]);
+  const nebulaParallaxX = useTransform(parallaxProgress, [0, 1], [0, -150]);
+  const horizonParallaxX = useTransform(parallaxProgress, [0, 1], [0, 85]);
 
   const cursorX = useMotionValue(-400);
   const cursorY = useMotionValue(-400);
@@ -100,9 +106,9 @@ export function NeuralParticleField({ isWarping }: NeuralParticleFieldProps) {
   const smoothCursorY = useSpring(cursorY, { stiffness: 180, damping: 24, mass: 0.6 });
 
   const starVars = useMemo(() => {
-    const sm = generateBoxShadowStars(520, 2000, ['#ffffff', '#fff9c4', '#ffd54f']);
-    const md = generateBoxShadowStars(160, 2000, ['#ffffff', '#ffd159', '#00e5ff', '#ec4899']);
-    const lg = generateBoxShadowStars(70, 2000, ['#ffd159', '#f5b82e', '#9333ea', '#ec4899', '#00e5ff', '#10b981']);
+    const sm = generateBoxShadowStars(560, 2800, ['#ffffff', '#fff9c4', '#ffd54f']);
+    const md = generateBoxShadowStars(180, 2800, ['#ffffff', '#ffd159', '#00e5ff', '#ec4899']);
+    const lg = generateBoxShadowStars(80, 2800, ['#ffd159', '#f5b82e', '#9333ea', '#ec4899', '#00e5ff', '#10b981']);
     return { sm, md, lg };
   }, []);
 
@@ -473,40 +479,48 @@ export function NeuralParticleField({ isWarping }: NeuralParticleFieldProps) {
 
       {/* Ambient Space, Dual-Nebula, Starfield & Neural Canvas */}
       <div
+        data-testid="parallax-bg"
         className={`fixed inset-0 overflow-hidden pointer-events-none z-0 ${isWarping ? 'warp-speed' : ''}`}
       >
-        <div
-          className="star-layer-1"
-          style={
-            {
-              boxShadow: starVars.sm,
-              '--stars-sm': starVars.sm,
-            } as React.CSSProperties
-          }
-        />
-        <div
-          className="star-layer-2"
-          style={
-            {
-              boxShadow: starVars.md,
-              '--stars-md': starVars.md,
-            } as React.CSSProperties
-          }
-        />
-        <div
-          className="star-layer-3"
-          style={
-            {
-              boxShadow: starVars.lg,
-              '--stars-lg': starVars.lg,
-            } as React.CSSProperties
-          }
-        />
+        <motion.div className="absolute inset-0 will-change-transform" style={{ x: starParallaxSlowX }}>
+          <div
+            className="star-layer-1"
+            style={
+              {
+                boxShadow: starVars.sm,
+                '--stars-sm': starVars.sm,
+              } as React.CSSProperties
+            }
+          />
+        </motion.div>
 
-        <div className="nebula-glow" />
+        <motion.div className="absolute inset-0 will-change-transform" style={{ x: starParallaxMidX }}>
+          <div
+            className="star-layer-2"
+            style={
+              {
+                boxShadow: starVars.md,
+                '--stars-md': starVars.md,
+              } as React.CSSProperties
+            }
+          />
+          <div
+            className="star-layer-3"
+            style={
+              {
+                boxShadow: starVars.lg,
+                '--stars-lg': starVars.lg,
+              } as React.CSSProperties
+            }
+          />
+        </motion.div>
+
+        <motion.div className="nebula-glow will-change-transform" style={{ x: nebulaParallaxX }} />
         <div className="circuit-grid absolute inset-0 opacity-40" />
-        <div className="perspective-grid" />
-        <div className="horizon-light-beam" />
+        <motion.div className="absolute inset-0 will-change-transform" style={{ x: horizonParallaxX }}>
+          <div className="perspective-grid" />
+          <div className="horizon-light-beam" />
+        </motion.div>
         <div className="hud-scanlines" />
 
         {/* Framer Motion GPU-composited Floating Bokeh Embers */}

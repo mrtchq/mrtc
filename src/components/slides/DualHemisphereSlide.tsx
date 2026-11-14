@@ -4,48 +4,22 @@ import { Cpu, FlaskConical } from 'lucide-react';
 import { TiltCard } from '../TiltCard';
 import { dispatchParticleBurst } from '../NeuralParticleField';
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.12 },
-  },
-};
+interface DualHemisphereSlideProps {
+  isActive: boolean;
+}
 
-const leftCardVariants = {
-  hidden: { opacity: 0, x: -36, scale: 0.96 },
-  visible: {
-    opacity: 1,
-    x: 0,
-    scale: 1,
-    transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1] as const },
-  },
-};
-
-const rightCardVariants = {
-  hidden: { opacity: 0, x: 36, scale: 0.96 },
-  visible: {
-    opacity: 1,
-    x: 0,
-    scale: 1,
-    transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1] as const },
-  },
-};
-
-export function DualHemisphereSlide() {
+export function DualHemisphereSlide({ isActive }: DualHemisphereSlideProps) {
   return (
-    <motion.section
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
+    <section
+      id="dual-hemisphere"
       aria-label="The Dual-Hemisphere System"
-      className="w-full h-full flex flex-col items-center px-11 sm:px-16 relative py-6 overflow-y-auto no-scrollbar"
+      className="slide-section min-w-full w-full h-full overflow-y-auto no-scrollbar flex flex-col items-center px-5 sm:px-14 md:px-20 relative py-6 sm:py-8"
     >
-      <div className="max-w-6xl w-full mx-auto my-auto">
+      <div className="my-auto max-w-6xl w-full mx-auto">
         <motion.div
-          initial={{ opacity: 0, y: -14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45 }}
+          initial={false}
+          animate={isActive ? { opacity: 1, y: 0 } : { opacity: 0.72, y: 12 }}
+          transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
           className="text-center md:text-left mb-6"
         >
           <span className="text-xs font-rajdhani tracking-[0.3em] uppercase text-gold-400">
@@ -58,10 +32,15 @@ export function DualHemisphereSlide() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
           {/* Left Card: Golden Logic Circuit */}
-          <motion.div variants={leftCardVariants} className="flex">
+          <motion.div
+            initial={false}
+            animate={isActive ? { opacity: 1, x: 0, scale: 1 } : { opacity: 0.65, x: -24, scale: 0.97 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="flex will-change-transform"
+          >
             <TiltCard
               variant="gold"
-              onClick={(e) => {
+              onClick={(e: React.MouseEvent<HTMLDivElement>) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 dispatchParticleBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, 22, '#ffd159');
               }}
@@ -113,10 +92,15 @@ export function DualHemisphereSlide() {
           </motion.div>
 
           {/* Right Card: Chromatic Rainbow Flow */}
-          <motion.div variants={rightCardVariants} className="flex">
+          <motion.div
+            initial={false}
+            animate={isActive ? { opacity: 1, x: 0, scale: 1 } : { opacity: 0.65, x: 24, scale: 0.97 }}
+            transition={{ duration: 0.5, delay: 0.06, ease: [0.16, 1, 0.3, 1] }}
+            className="flex will-change-transform"
+          >
             <TiltCard
               variant="rainbow"
-              onClick={(e) => {
+              onClick={(e: React.MouseEvent<HTMLDivElement>) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 dispatchParticleBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, 22, '#ec4899');
               }}
@@ -169,6 +153,6 @@ export function DualHemisphereSlide() {
           </motion.div>
         </div>
       </div>
-    </motion.section>
+    </section>
   );
 }

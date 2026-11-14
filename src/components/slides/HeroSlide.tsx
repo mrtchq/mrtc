@@ -1,11 +1,13 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion, useTransform, type MotionValue } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
 import { TiltCard } from '../TiltCard';
 import { dispatchParticleBurst } from '../NeuralParticleField';
 
 interface HeroSlideProps {
-  onJumpToSlide: (index: number) => void;
+  isActive: boolean;
+  onSelectSlide: (index: number) => void;
+  parallaxProgress: MotionValue<number>;
 }
 
 const KPI_CARDS = [
@@ -51,31 +53,56 @@ const containerVariants = {
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 18 },
+  hidden: { opacity: 0, y: 20 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.42, ease: [0.16, 1, 0.3, 1] as const },
+    transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] as const },
   },
 };
 
-export function HeroSlide({ onJumpToSlide }: HeroSlideProps) {
-  const handleCtaClick = (e: React.MouseEvent<HTMLButtonElement>, targetSlide: number, colorHex: string) => {
+export function HeroSlide({ isActive, onSelectSlide, parallaxProgress }: HeroSlideProps) {
+  const bgOrbitX = useTransform(parallaxProgress, [0, 1], [0, 160]);
+  const bgOrbitScale = useTransform(parallaxProgress, [0, 0.35], [1, 1.15]);
+  const headlineX = useTransform(parallaxProgress, [0, 1], [0, -60]);
+  const kpiLayerX = useTransform(parallaxProgress, [0, 1], [0, -100]);
+
+  const handleActionClick = (
+    e: React.MouseEvent<HTMLButtonElement>,
+    slideIndex: number,
+    colorHex: string
+  ) => {
     const rect = e.currentTarget.getBoundingClientRect();
     dispatchParticleBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, 26, colorHex);
-    onJumpToSlide(targetSlide);
+    onSelectSlide(slideIndex);
   };
 
   return (
     <motion.section
+      id="hero"
       variants={containerVariants}
       initial="hidden"
-      animate="visible"
+      animate={isActive ? 'visible' : 'visible'}
       aria-label="Hero Overview"
-      className="w-full h-full flex flex-col items-center px-11 sm:px-16 md:px-20 text-center relative py-6 overflow-y-auto no-scrollbar"
+      className="slide-section min-w-full w-full h-full overflow-y-auto no-scrollbar flex flex-col items-center px-5 sm:px-14 md:px-20 text-center relative py-6 sm:py-8"
     >
-      <div className="max-w-4xl w-full mx-auto my-auto flex flex-col items-center">
-        {/* Hero Headline mimicking Logo Typography with Framer Motion kinetic energy */}
+      {/* Parallax Deep Orbital Ring Backdrop */}
+      <motion.div
+        aria-hidden="true"
+        data-testid="hero-parallax-orbit"
+        style={{ x: bgOrbitX, scale: bgOrbitScale }}
+        className="pointer-events-none absolute inset-0 flex items-center justify-center z-0 will-change-transform"
+      >
+        <div className="w-[460px] h-[460px] md:w-[680px] md:h-[680px] rounded-full border border-gold-400/10 flex items-center justify-center">
+          <div className="w-[340px] h-[340px] md:w-[490px] md:h-[490px] rounded-full border border-chroma-magenta/15 border-dashed" />
+        </div>
+      </motion.div>
+
+      <motion.div
+        style={{ x: headlineX }}
+        className="my-auto max-w-4xl w-full mx-auto flex flex-col items-center relative z-10 will-change-transform"
+      >
+        {/* Hero Headline */}
         <motion.div variants={itemVariants} className="my-2 relative">
           <motion.div
             aria-hidden="true"
@@ -126,11 +153,11 @@ export function HeroSlide({ onJumpToSlide }: HeroSlideProps) {
         {/* Action Buttons */}
         <motion.div
           variants={itemVariants}
-          className="mt-8 flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto"
+          className="mt-7 flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto"
         >
           <motion.button
             type="button"
-            onClick={(e) => handleCtaClick(e, 2, '#ffd159')}
+            onClick={(e) => handleActionClick(e, 2, '#ffd159')}
             whileHover={{ y: -2, scale: 1.03 }}
             whileTap={{ scale: 0.96 }}
             className="btn-glow-pulse w-full sm:w-auto px-8 py-3.5 rounded-xl font-orbitron text-xs sm:text-sm font-bold tracking-widest uppercase bg-gradient-to-r from-gold-400 via-amber-500 to-gold-600 hover:from-gold-300 hover:to-amber-400 text-space-950 shadow-lg shadow-gold-500/40 flex items-center justify-center space-x-2 whitespace-nowrap cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-300"
@@ -141,19 +168,20 @@ export function HeroSlide({ onJumpToSlide }: HeroSlideProps) {
 
           <motion.button
             type="button"
-            onClick={(e) => handleCtaClick(e, 4, '#ec4899')}
+            onClick={(e) => handleActionClick(e, 4, '#ec4899')}
             whileHover={{ y: -2, scale: 1.03 }}
             whileTap={{ scale: 0.96 }}
-            className="btn-glow-pulse w-full sm:w-auto px-8 py-3.5 rounded-xl font-orbitron text-xs sm:text-sm font-semibold tracking-widest uppercase bg-space-900/80 hover:bg-space-850 text-slate-100 border border-purple-500/40 hover:border-chroma-magenta shadow-md rainbow-border-pulse whitespace-nowrap cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-chroma-magenta"
+            className="btn-glow-pulse w-full sm:w-auto px-8 py-3.5 rounded-xl font-orbitron text-xs sm:text-sm font-semibold tracking-widest uppercase bg-space-900/80 hover:bg-space-850 text-slate-100 border border-purple-500/40 hover:border-chroma-magenta shadow-md rainbow-border-pulse flex items-center justify-center whitespace-nowrap cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-chroma-magenta"
           >
             JOIN THE WAITLIST
           </motion.button>
         </motion.div>
 
-        {/* Live Metric Highlights */}
+        {/* Live Metric Highlights on Horizontal Foreground Parallax Plane */}
         <motion.div
           variants={itemVariants}
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-10 w-full max-w-3xl pt-6 border-t border-slate-800/80"
+          style={{ x: kpiLayerX }}
+          className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mt-8 w-full max-w-3xl pt-5 border-t border-slate-800/80 will-change-transform"
         >
           {KPI_CARDS.map((kpi) => (
             <TiltCard
@@ -164,7 +192,7 @@ export function HeroSlide({ onJumpToSlide }: HeroSlideProps) {
                 const rect = e.currentTarget.getBoundingClientRect();
                 dispatchParticleBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, 16, kpi.burstColor);
               }}
-              className={`p-3.5 rounded-xl text-center cursor-pointer ${kpi.borderClass}`}
+              className={`p-3 sm:p-3.5 rounded-xl text-center cursor-pointer ${kpi.borderClass}`}
             >
               <div className={`${kpi.valueClass} font-orbitron font-bold text-xl md:text-2xl tabular-nums`}>
                 {kpi.value}
@@ -175,7 +203,21 @@ export function HeroSlide({ onJumpToSlide }: HeroSlideProps) {
             </TiltCard>
           ))}
         </motion.div>
-      </div>
+
+        {/* Horizontal Swipe Cue */}
+        <motion.div variants={itemVariants} className="mt-7">
+          <motion.button
+            type="button"
+            onClick={(e) => handleActionClick(e, 1, '#00e5ff')}
+            animate={{ x: [0, 6, 0] }}
+            transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+            className="inline-flex items-center space-x-2 text-xs font-rajdhani tracking-[0.25em] uppercase text-slate-400 hover:text-gold-300 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400 rounded-full px-3 py-1.5"
+          >
+            <span>Swipe Horizontal to Explore</span>
+            <ArrowRight className="w-3.5 h-3.5 text-gold-400" aria-hidden="true" />
+          </motion.button>
+        </motion.div>
+      </motion.div>
     </motion.section>
   );
 }

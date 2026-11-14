@@ -278,3 +278,47 @@ export function calculateParticlePoolBudget(width: number, height: number): {
     connectDistance: isCompact ? 105 : 135,
   };
 }
+
+export interface PageSectionSpec {
+  id: string;
+  navLabel: string;
+  sectorNumber: string;
+}
+
+export const PAGE_SECTIONS: PageSectionSpec[] = [
+  { id: 'hero', navLabel: 'Overview', sectorNumber: '01' },
+  { id: 'dual-hemisphere', navLabel: 'System', sectorNumber: '02' },
+  { id: 'copilot-modes', navLabel: 'Modes', sectorNumber: '03' },
+  { id: 'biometric-matrix', navLabel: 'Matrix', sectorNumber: '04' },
+  { id: 'waitlist', navLabel: 'Access', sectorNumber: '05' },
+];
+
+export function clampSlideIndex(index: number, total: number = TOTAL_SLIDES): number {
+  if (total <= 0) return 0;
+  return Math.max(0, Math.min(total - 1, index));
+}
+
+export function getSlideIndexById(sectionId: string): number {
+  const idx = PAGE_SECTIONS.findIndex((s) => s.id === sectionId);
+  return idx >= 0 ? idx : 0;
+}
+
+export function resolveSwipeNavigation(
+  deltaX: number,
+  velocityX: number,
+  currentIndex: number,
+  total: number = TOTAL_SLIDES
+): number {
+  if (total <= 0) return 0;
+  const distanceThreshold = 55;
+  const velocityThreshold = 320;
+
+  if (deltaX <= -distanceThreshold || velocityX <= -velocityThreshold) {
+    return clampSlideIndex(currentIndex + 1, total);
+  }
+  if (deltaX >= distanceThreshold || velocityX >= velocityThreshold) {
+    return clampSlideIndex(currentIndex - 1, total);
+  }
+  return clampSlideIndex(currentIndex, total);
+}
+
