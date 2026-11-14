@@ -27,6 +27,7 @@ import {
   getInitialSlideIndexFromPath,
   navigationBridge,
 } from './utils/navigationBridge';
+import { triggerSubtleHaptic } from './utils/cognitiveFeedback';
 
 const INTERACTIVE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT', 'OPTION']);
 
@@ -55,6 +56,9 @@ export default function App() {
     clearVoiceError,
   } = useGeminiLiveVoice();
 
+  const [isPageMoving, setIsPageMoving] = useState(true);
+  const [arrowsInteracted, setArrowsInteracted] = useState(false);
+
   const viewportRef = useRef<HTMLElement>(null);
   const activeIndexRef = useRef(initialSlide);
   const welcomeOpenRef = useRef(isWelcomeOpen);
@@ -66,7 +70,42 @@ export default function App() {
 
   const warpTimerRef = useRef<number | null>(null);
   const wheelCooldownRef = useRef(false);
+  const inactivityTimerRef = useRef<number | null>(null);
   const prevLiveOrbStateRef = useRef<VoiceOrbState>(liveOrbState);
+
+  const registerPageActivity = useCallback(() => {
+    setIsPageMoving(true);
+    if (inactivityTimerRef.current) {
+      window.clearTimeout(inactivityTimerRef.current);
+    }
+    inactivityTimerRef.current = window.setTimeout(() => {
+      setIsPageMoving(false);
+    }, 1800);
+  }, []);
+
+  useEffect(() => {
+    registerPageActivity();
+    const events: Array<keyof WindowEventMap> = [
+      'pointermove',
+      'pointerdown',
+      'touchstart',
+      'touchmove',
+      'wheel',
+      'keydown',
+      'scroll',
+    ];
+    for (const evt of events) {
+      window.addEventListener(evt, registerPageActivity, { passive: true });
+    }
+    return () => {
+      if (inactivityTimerRef.current) {
+        window.clearTimeout(inactivityTimerRef.current);
+      }
+      for (const evt of events) {
+        window.removeEventListener(evt, registerPageActivity);
+      }
+    };
+  }, [registerPageActivity]);
 
   useEffect(() => {
     const prevState = prevLiveOrbStateRef.current;
@@ -134,16 +173,20 @@ export default function App() {
       activeIndexRef.current = clamped;
       setActiveSlideIndex(clamped);
       animateTrackToSlide(clamped);
+      registerPageActivity();
 
       if (!options?.skipUrlSync) {
         navigationBridge.recordSlideChange(clamped, true);
       }
 
-      if (changed && !options?.silent) {
-        triggerWarpEffects();
+      if (changed) {
+        triggerSubtleHaptic('slide');
+        if (!options?.silent) {
+          triggerWarpEffects();
+        }
       }
     },
-    [animateTrackToSlide, triggerWarpEffects]
+    [animateTrackToSlide, registerPageActivity, triggerWarpEffects]
   );
 
   // Bind in-page NavigationBridge for mid-conversation voice navigation without reloading
@@ -398,7 +441,6 @@ export default function App() {
           activeSlideIndex={activeSlideIndex}
           onSelectSlide={(idx) => goToSlide(idx)}
           parallaxProgress={parallaxProgress}
-          eegBoosted={false}
           onOpenWelcome={() => setIsWelcomeOpen(true)}
           accountMenuOpen={accountMenuOpen}
           onAccountMenuOpenChange={setAccountMenuOpen}
@@ -419,28 +461,48 @@ export default function App() {
           style={{ touchAction: 'pan-y' }}
           className="relative z-20 flex-1 w-full overflow-hidden flex items-center cursor-grab active:cursor-grabbing"
         >
-          {/* Left Floating Arrow */}
+          {/* Left Translucent Auto-Dimming Navigation Arrow (Desktop & Mobile) */}
           <motion.button
             type="button"
+            data-testid="prev-slide-arrow"
+            data-arrows-dimmed={!isPageMoving && !arrowsInteracted ? 'true' : 'false'}
             onClick={handlePrevSlide}
+            onPointerEnter={() => setArrowsInteracted(true)}
+            onPointerLeave={() => setArrowsInteracted(false)}
+            onFocus={() => setArrowsInteracted(true)}
+            onBlur={() => setArrowsInteracted(false)}
+            animate={{
+              opacity: arrowsInteracted ? 0.92 : isPageMoving ? 0.68 : 0.16,
+            }}
+            transition={{ duration: 0.45, ease: 'easeOut' }}
             whileHover={{ scale: 1.08, x: -2 }}
             whileTap={{ scale: 0.92 }}
             aria-label="Previous Slide"
-            className="hidden md:flex absolute left-4 lg:left-6 z-30 p-3 rounded-full bg-space-900/95 border border-gold-400/30 text-gold-400 hover:text-white hover:border-gold-400 hover:bg-gold-500/20 transition-colors shadow-lg shadow-black/50 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+            className="flex items-center justify-center absolute left-2 sm:left-4 lg:left-6 z-30 w-11 h-11 rounded-full bg-space-900/35 backdrop-blur-sm border border-gold-400/25 text-gold-300/90 hover:text-white hover:border-gold-400/75 hover:bg-space-900/65 shadow-md shadow-black/30 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
           >
-            <ChevronLeft className="w-6 h-6" aria-hidden="true" />
+            <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" aria-hidden="true" />
           </motion.button>
 
-          {/* Right Floating Arrow */}
+          {/* Right Translucent Auto-Dimming Navigation Arrow (Desktop & Mobile) */}
           <motion.button
             type="button"
+            data-testid="next-slide-arrow"
+            data-arrows-dimmed={!isPageMoving && !arrowsInteracted ? 'true' : 'false'}
             onClick={handleNextSlide}
+            onPointerEnter={() => setArrowsInteracted(true)}
+            onPointerLeave={() => setArrowsInteracted(false)}
+            onFocus={() => setArrowsInteracted(true)}
+            onBlur={() => setArrowsInteracted(false)}
+            animate={{
+              opacity: arrowsInteracted ? 0.92 : isPageMoving ? 0.68 : 0.16,
+            }}
+            transition={{ duration: 0.45, ease: 'easeOut' }}
             whileHover={{ scale: 1.08, x: 2 }}
             whileTap={{ scale: 0.92 }}
             aria-label="Next Slide"
-            className="hidden md:flex absolute right-4 lg:right-6 z-30 p-3 rounded-full bg-space-900/95 border border-gold-400/30 text-gold-400 hover:text-white hover:border-gold-400 hover:bg-gold-500/20 transition-colors shadow-lg shadow-black/50 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+            className="flex items-center justify-center absolute right-2 sm:right-4 lg:right-6 z-30 w-11 h-11 rounded-full bg-space-900/35 backdrop-blur-sm border border-gold-400/25 text-gold-300/90 hover:text-white hover:border-gold-400/75 hover:bg-space-900/65 shadow-md shadow-black/30 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
           >
-            <ChevronRight className="w-6 h-6" aria-hidden="true" />
+            <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" aria-hidden="true" />
           </motion.button>
 
           {/* Horizontal Slides Track driven by Framer Motion */}

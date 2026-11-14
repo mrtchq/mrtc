@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, useSpring, useTransform, type MotionValue } from 'motion/react';
-import { ChevronLeft, ChevronRight, HelpCircle, LogOut, Mic, MicOff, PhoneOff, X } from 'lucide-react';
+import { Bell, ChevronLeft, ChevronRight, HelpCircle, LogOut, Mic, MicOff, Pause, PhoneOff, Play, RotateCcw, Timer, X } from 'lucide-react';
 import { PAGE_SECTIONS, TOTAL_SLIDES } from '../utils/cognitiveEngine';
 import { dispatchParticleBurst } from './NeuralParticleField';
 import { useFirebaseAuth } from '../contexts/FirebaseContext';
+import { useFocusTimer } from '../hooks/useFocusTimer';
+import { formatFocusCountdown } from '../utils/cognitiveFeedback';
 
 const SHOW_GOOGLE_SIGN_IN = false;
 
@@ -11,7 +13,6 @@ interface HeaderHudProps {
   activeSlideIndex: number;
   onSelectSlide: (index: number) => void;
   parallaxProgress: MotionValue<number>;
-  eegBoosted: boolean;
   onOpenWelcome: () => void;
   accountMenuOpen?: boolean;
   onAccountMenuOpenChange?: (open: boolean) => void;
@@ -21,15 +22,6 @@ interface HeaderHudProps {
   onToggleVoiceMute?: () => void;
   onStopVoice?: () => void;
 }
-
-const EEG_BARS = [
-  { colorClass: 'bg-gold-400', keyframes: [0.3, 0.85, 0.45, 0.95, 0.3], duration: 1.1 },
-  { colorClass: 'bg-chroma-cyan', keyframes: [0.5, 0.95, 0.35, 0.8, 0.5], duration: 0.9 },
-  { colorClass: 'bg-chroma-purple', keyframes: [0.7, 0.4, 1.0, 0.55, 0.7], duration: 1.25 },
-  { colorClass: 'bg-chroma-magenta', keyframes: [0.6, 0.9, 0.4, 0.85, 0.6], duration: 1.0 },
-  { colorClass: 'bg-chroma-lime', keyframes: [0.8, 0.35, 0.9, 0.5, 0.8], duration: 0.85 },
-  { colorClass: 'bg-gold-400', keyframes: [0.4, 0.8, 0.6, 0.92, 0.4], duration: 1.15 },
-];
 
 function GoogleMarkIcon() {
   return (
@@ -58,7 +50,6 @@ export function HeaderHud({
   activeSlideIndex,
   onSelectSlide,
   parallaxProgress,
-  eegBoosted,
   onOpenWelcome,
   accountMenuOpen,
   onAccountMenuOpenChange,
@@ -73,7 +64,22 @@ export function HeaderHud({
 
   const { user, authReady, authLoading, authError, signInWithGoogle, signOutUser, clearAuthError } =
     useFirebaseAuth();
+  const {
+    presets,
+    selectedMinutes,
+    remainingSeconds,
+    isRunning,
+    permissionState,
+    elapsedNotice,
+    selectPreset,
+    startTimer,
+    pauseTimer,
+    resetTimer,
+    requestPermission,
+    dismissElapsedNotice,
+  } = useFocusTimer(25);
   const [internalMenuOpen, setInternalMenuOpen] = useState(false);
+  const [focusPanelOpen, setFocusPanelOpen] = useState(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
   const menuContainerRef = useRef<HTMLDivElement>(null);
 
@@ -99,7 +105,7 @@ export function HeaderHud({
   }, [user, onAccountMenuOpenChange]);
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen && !focusPanelOpen) return;
     const onPointerDown = (e: MouseEvent) => {
       if (menuContainerRef.current && !menuContainerRef.current.contains(e.target as Node)) {
         if (onAccountMenuOpenChange) {
@@ -107,6 +113,7 @@ export function HeaderHud({
         } else {
           setInternalMenuOpen(false);
         }
+        setFocusPanelOpen(false);
       }
     };
     const onKeyDown = (e: KeyboardEvent) => {
@@ -116,6 +123,7 @@ export function HeaderHud({
         } else {
           setInternalMenuOpen(false);
         }
+        setFocusPanelOpen(false);
       }
     };
     document.addEventListener('mousedown', onPointerDown);
@@ -124,9 +132,11 @@ export function HeaderHud({
       document.removeEventListener('mousedown', onPointerDown);
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [menuOpen, onAccountMenuOpenChange]);
+  }, [focusPanelOpen, menuOpen, onAccountMenuOpenChange]);
 
   const userInitial = (user?.displayName || user?.email || 'U').trim().charAt(0).toUpperCase();
+  const isTimerActiveOrPaused = isRunning || remainingSeconds < selectedMinutes * 60;
+  const activePreset = presets.find((p) => p.minutes === selectedMinutes) ?? presets[2];
 
   return (
     <header className="relative z-30 shrink-0 h-16 px-4 sm:px-6 flex items-center justify-between gap-4 sm:gap-8 border-b border-gold-400/20 bg-[#080811]/95 shadow-[0_4px_24px_rgba(0,0,0,0.65)]">
@@ -230,40 +240,8 @@ export function HeaderHud({
         })}
       </nav>
 
-      {/* Top-Right Telemetry & Google Authentication */}
-      <div className="flex items-center gap-3 shrink-0 relative" ref={menuContainerRef}>
-        <div
-          className={`hidden lg:flex items-center space-x-2 bg-space-950/90 px-3.5 py-1.5 rounded-full border transition-colors ${
-            eegBoosted ? 'border-gold-400 shadow-[0_0_16px_rgba(255,209,89,0.35)]' : 'border-purple-500/30'
-          }`}
-        >
-          <span className="text-[10px] font-rajdhani text-slate-400 tracking-wider">EEG</span>
-          <div className="flex items-end space-x-1 h-4" aria-hidden="true">
-            {EEG_BARS.map((bar, idx) => (
-              <motion.span
-                key={idx}
-                className={`w-1 h-full rounded-sm origin-bottom ${bar.colorClass}`}
-                animate={{
-                  scaleY: eegBoosted ? [0.6, 1.0, 0.7, 1.0] : bar.keyframes,
-                }}
-                transition={{
-                  duration: eegBoosted ? bar.duration * 0.45 : bar.duration,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
-                }}
-              />
-            ))}
-          </div>
-          <span
-            data-testid="eeg-label"
-            className={`text-[10px] font-rajdhani font-bold whitespace-nowrap tabular-nums transition-colors ${
-              eegBoosted ? 'text-gold-300' : 'text-chroma-cyan'
-            }`}
-          >
-            {eegBoosted ? '120Hz SUPER-GAMMA' : '40Hz GAMMA'}
-          </span>
-        </div>
-
+      {/* Top-Right Controls */}
+      <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 relative" ref={menuContainerRef}>
         {/* Active Live Voice Session Controls (rendered only while live call is active) */}
         {(isVoiceActive || isVoiceConnecting) && (
           <div
@@ -301,6 +279,160 @@ export function HeaderHud({
           </div>
         )}
 
+        {/* Focus Interval Timer & Desktop Notification Trigger */}
+        <div className="relative flex items-center">
+          <button
+            type="button"
+            data-testid="focus-timer-btn"
+            onClick={() => setFocusPanelOpen((prev) => !prev)}
+            aria-expanded={focusPanelOpen}
+            aria-haspopup="dialog"
+            aria-label={
+              isRunning
+                ? `Focus interval running: ${formatFocusCountdown(remainingSeconds)} remaining`
+                : 'Open focus interval timer'
+            }
+            title="Focus Interval Timer"
+            className={`h-9 rounded-full flex items-center justify-center gap-1.5 bg-space-950/90 hover:bg-space-850 border transition-colors shrink-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400 whitespace-nowrap ${
+              isTimerActiveOrPaused ? 'px-3' : 'w-9'
+            } ${
+              isRunning
+                ? 'border-chroma-cyan/50 text-chroma-cyan shadow-[0_0_14px_rgba(0,229,255,0.2)]'
+                : 'border-gold-400/30 hover:border-gold-400 text-slate-300 hover:text-gold-300'
+            }`}
+          >
+            <Timer className="w-4 h-4 shrink-0" aria-hidden="true" />
+            {isTimerActiveOrPaused && (
+              <span
+                data-testid="focus-header-countdown"
+                className="font-rajdhani text-xs font-bold tracking-wider tabular-nums"
+              >
+                {formatFocusCountdown(remainingSeconds)}
+              </span>
+            )}
+          </button>
+
+          {focusPanelOpen && (
+            <div
+              role="dialog"
+              aria-label="Focus Interval Timer"
+              data-testid="focus-timer-popover"
+              className="absolute right-0 top-12 w-72 sm:w-80 rounded-2xl border border-white/15 bg-[#0c0c1c]/95 backdrop-blur-2xl p-4 shadow-[0_24px_64px_rgba(0,0,0,0.75)] z-50 text-slate-100"
+            >
+              <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/10">
+                <div>
+                  <p className="font-orbitron text-xs font-bold tracking-wider uppercase text-white">
+                    Focus Interval
+                  </p>
+                  <p className="text-xs text-slate-400 mt-0.5">{activePreset.subtitle}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFocusPanelOpen(false)}
+                  aria-label="Close focus timer"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" aria-hidden="true" />
+                </button>
+              </div>
+
+              <div className="py-4 text-center">
+                <p
+                  data-testid="focus-popover-countdown"
+                  className="font-orbitron text-3xl font-bold tracking-wider tabular-nums text-white"
+                >
+                  {formatFocusCountdown(remainingSeconds)}
+                </p>
+              </div>
+
+              <div
+                className="grid grid-cols-4 gap-1.5 mb-4"
+                role="group"
+                aria-label="Predefined focus intervals"
+              >
+                {presets.map((preset) => {
+                  const selected = preset.minutes === selectedMinutes;
+                  return (
+                    <button
+                      key={preset.minutes}
+                      type="button"
+                      data-testid={`focus-preset-${preset.minutes}`}
+                      onClick={() => selectPreset(preset.minutes)}
+                      className={`py-2 px-1 rounded-lg text-xs font-rajdhani font-bold tracking-wider transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                        selected
+                          ? 'bg-gold-400 text-space-950 shadow-sm shadow-gold-400/30'
+                          : 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {isRunning ? (
+                  <button
+                    type="button"
+                    data-testid="focus-pause-btn"
+                    onClick={pauseTimer}
+                    className="flex-1 h-10 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-orbitron font-bold tracking-wider uppercase text-white flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer transition-colors"
+                  >
+                    <Pause className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>Pause</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    data-testid="focus-start-btn"
+                    onClick={() => void startTimer()}
+                    className="flex-1 h-10 rounded-xl bg-gradient-to-r from-gold-400 via-amber-500 to-gold-500 hover:from-gold-300 hover:to-amber-400 text-xs font-orbitron font-bold tracking-wider uppercase text-space-950 flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer transition-colors"
+                  >
+                    <Play className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>Start Focus</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  data-testid="focus-reset-btn"
+                  onClick={resetTimer}
+                  aria-label="Reset focus timer"
+                  title="Reset timer"
+                  className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white flex items-center justify-center shrink-0 cursor-pointer transition-colors"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+                </button>
+              </div>
+
+              <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                <span className="flex items-center gap-1.5 min-w-0 truncate">
+                  <Bell className="w-3.5 h-3.5 shrink-0 text-chroma-cyan" aria-hidden="true" />
+                  <span className="truncate">
+                    {permissionState === 'granted'
+                      ? 'Desktop notifications enabled'
+                      : permissionState === 'denied'
+                        ? 'Desktop alerts blocked · using in-app alert'
+                        : permissionState === 'unsupported'
+                          ? 'In-app gentle alert active'
+                          : 'Desktop alert on completion'}
+                  </span>
+                </span>
+                {permissionState === 'default' && (
+                  <button
+                    type="button"
+                    data-testid="focus-enable-notif-btn"
+                    onClick={() => void requestPermission()}
+                    className="text-gold-300 hover:text-gold-200 font-semibold whitespace-nowrap shrink-0 cursor-pointer"
+                  >
+                    Allow
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Interface Guide Trigger */}
         <button
           type="button"
@@ -312,6 +444,32 @@ export function HeaderHud({
         >
           <HelpCircle className="w-4 h-4" aria-hidden="true" />
         </button>
+
+        {elapsedNotice && (
+          <div
+            role="status"
+            aria-live="polite"
+            data-testid="focus-elapsed-banner"
+            className="fixed top-20 right-4 sm:right-6 z-50 max-w-xs rounded-2xl border border-chroma-cyan/40 bg-[#0b0b19]/95 backdrop-blur-xl p-3.5 shadow-2xl flex items-start justify-between gap-3 text-slate-100"
+          >
+            <div className="min-w-0">
+              <p className="font-orbitron text-xs font-bold tracking-wider uppercase text-chroma-cyan">
+                {elapsedNotice.minutes}-Minute Focus Complete
+              </p>
+              <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                Your focus interval elapsed. Take a gentle breath before starting the next block.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={dismissElapsedNotice}
+              aria-label="Dismiss focus completion notice"
+              className="text-slate-400 hover:text-white shrink-0 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" aria-hidden="true" />
+            </button>
+          </div>
+        )}
 
         {/* Google Sign-In Button or Signed-In Google Profile Picture */}
         {SHOW_GOOGLE_SIGN_IN &&

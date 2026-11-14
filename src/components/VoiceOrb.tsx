@@ -6,6 +6,7 @@ import {
   VOICE_ORB_TONE_HEX,
   type VoiceOrbState,
 } from '../hooks/useVoiceOrbSimulation';
+import { triggerSubtleHaptic } from '../utils/cognitiveFeedback';
 
 interface VoiceOrbProps {
   orbState: VoiceOrbState;
@@ -52,6 +53,7 @@ export function VoiceOrb({ orbState, onOrbClick }: VoiceOrbProps) {
   };
 
   const handleActivate = (el: HTMLElement) => {
+    triggerSubtleHaptic('orb');
     const nextState = getNextVoiceOrbState(orbState);
     const rect = el.getBoundingClientRect();
     dispatchParticleBurst(

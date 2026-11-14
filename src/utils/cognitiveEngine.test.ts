@@ -21,6 +21,13 @@ import {
   resolveAudioRippleEvent,
   VOICE_ORB_STATE_ORDER,
 } from '../hooks/useVoiceOrbSimulation';
+import {
+  dispatchFocusDesktopNotification,
+  FOCUS_INTERVAL_PRESETS,
+  formatFocusCountdown,
+  requestDesktopNotificationPermission,
+  triggerSubtleHaptic,
+} from './cognitiveFeedback';
 
 test('wrapSlideIndex wraps positively and negatively across 5 slides', () => {
   assert.equal(wrapSlideIndex(0, TOTAL_SLIDES), 0);
@@ -148,6 +155,67 @@ test('resolveAudioRippleEvent fires only when Voice AI starts speaking or finish
   assert.equal(resolveAudioRippleEvent('speak', 'listen'), null);
   assert.equal(resolveAudioRippleEvent('speak', 'idle'), null);
   assert.equal(resolveAudioRippleEvent('speak', 'speak'), null);
+});
+
+test('triggerSubtleHaptic vibrates cleanly only on mobile/touch environments with navigator.vibrate', () => {
+  const patterns: Array<number | number[]> = [];
+  const mobileNav = {
+    maxTouchPoints: 5,
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
+    vibrate: (p: number | number[]) => {
+      patterns.push(p);
+      return true;
+    },
+  };
+  const desktopNav = {
+    maxTouchPoints: 0,
+    userAgent: 'Mozilla/5.0 (X11; Linux x86_64)',
+    vibrate: (p: number | number[]) => {
+      patterns.push(p);
+      return true;
+    },
+  };
+
+  assert.equal(triggerSubtleHaptic('slide', desktopNav, undefined), false);
+  assert.equal(patterns.length, 0);
+
+  assert.equal(triggerSubtleHaptic('slide', mobileNav, undefined), true);
+  assert.equal(triggerSubtleHaptic('orb', mobileNav, undefined), true);
+  assert.deepEqual(patterns, [10, 16]);
+});
+
+test('focus interval presets, countdown formatting, and Notification API dispatch cleanly', async () => {
+  assert.ok(FOCUS_INTERVAL_PRESETS.length >= 4);
+  assert.equal(formatFocusCountdown(1500), '25:00');
+  assert.equal(formatFocusCountdown(65), '01:05');
+  assert.equal(formatFocusCountdown(-3), '00:00');
+
+  const spawned: Array<{ title: string; options?: NotificationOptions }> = [];
+  class MockGrantedNotification {
+    static permission: NotificationPermission = 'granted';
+    static requestPermission = async (): Promise<NotificationPermission> => 'granted';
+    constructor(title: string, options?: NotificationOptions) {
+      spawned.push({ title, options });
+    }
+  }
+  class MockDeniedNotification {
+    static permission: NotificationPermission = 'denied';
+    static requestPermission = async (): Promise<NotificationPermission> => 'denied';
+    constructor(title: string, options?: NotificationOptions) {
+      spawned.push({ title, options });
+    }
+  }
+
+  assert.equal(dispatchFocusDesktopNotification(25, MockDeniedNotification), false);
+  assert.equal(spawned.length, 0);
+
+  assert.equal(dispatchFocusDesktopNotification(25, MockGrantedNotification), true);
+  assert.equal(spawned.length, 1);
+  assert.match(spawned[0].title, /Focus Interval/i);
+  assert.match(String(spawned[0].options?.body), /25-minute/);
+
+  const perm = await requestDesktopNotificationPermission(MockGrantedNotification);
+  assert.equal(perm, 'granted');
 });
 
 
