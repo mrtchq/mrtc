@@ -17,14 +17,11 @@ import {
   TOTAL_SLIDES,
   wrapSlideIndex,
 } from './utils/cognitiveEngine';
-import { synthAudio } from './utils/synthAudio';
 
 const INTERACTIVE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT', 'OPTION']);
 
 export default function App() {
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
-  const [audioEnabled, setAudioEnabled] = useState(true);
-  const [ambientFreqHz, setAmbientFreqHz] = useState(() => Math.round(synthAudio.getAmbientState().baseFreqHz));
   const [isWarping, setIsWarping] = useState(false);
   const [containerWidth, setContainerWidth] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1440
@@ -86,7 +83,6 @@ export default function App() {
       animateTrackToSlide(clamped);
 
       if (changed && !options?.silent) {
-        synthAudio.playWarpWhoosh();
         triggerWarpEffects();
       }
     },
@@ -102,65 +98,6 @@ export default function App() {
     const prev = wrapSlideIndex(activeIndexRef.current - 1, TOTAL_SLIDES);
     goToSlide(prev);
   }, [goToSlide]);
-
-  const handleToggleAudio = useCallback(() => {
-    setAudioEnabled((prev) => {
-      const next = !prev;
-      synthAudio.setEnabled(next);
-      if (next) {
-        synthAudio.playBeep(620, 'sine', 0.1, 0.05);
-      }
-      return next;
-    });
-  }, []);
-
-  // Unlock subtle ambient hum on first user gesture and modulate smoothly across swipes
-  useEffect(() => {
-    const unlockAmbient = () => {
-      const state = synthAudio.ensureAmbientStarted();
-      setAmbientFreqHz(Math.round(state.baseFreqHz));
-    };
-
-    const onVisibilityChange = () => {
-      synthAudio.setVisibilityPaused(document.hidden);
-    };
-
-    window.addEventListener('pointerdown', unlockAmbient, { passive: true, once: true });
-    window.addEventListener('keydown', unlockAmbient, { passive: true, once: true });
-    document.addEventListener('visibilitychange', onVisibilityChange);
-
-    let lastProgress = parallaxProgress.get();
-    let lastTime = performance.now();
-    let settleTimer: number | null = null;
-
-    const unsubscribe = parallaxProgress.on('change', (latest) => {
-      const now = performance.now();
-      const dtSec = Math.max(0.008, (now - lastTime) / 1000);
-      const speed = Math.abs(latest - lastProgress) / dtSec;
-      lastProgress = latest;
-      lastTime = now;
-
-      const velocityNorm = Math.min(1, speed / 2.2);
-      const state = synthAudio.modulateAmbient(latest, velocityNorm);
-      const rounded = Math.round(state.baseFreqHz);
-      setAmbientFreqHz((prev) => (prev === rounded ? prev : rounded));
-
-      if (settleTimer !== null) window.clearTimeout(settleTimer);
-      settleTimer = window.setTimeout(() => {
-        const resting = synthAudio.modulateAmbient(latest, 0);
-        const restingHz = Math.round(resting.baseFreqHz);
-        setAmbientFreqHz((prev) => (prev === restingHz ? prev : restingHz));
-      }, 170);
-    });
-
-    return () => {
-      unsubscribe();
-      if (settleTimer !== null) window.clearTimeout(settleTimer);
-      window.removeEventListener('pointerdown', unlockAmbient);
-      window.removeEventListener('keydown', unlockAmbient);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-    };
-  }, [parallaxProgress]);
 
   // Keep track width synced cleanly on window / viewport resize
   useEffect(() => {
@@ -330,10 +267,7 @@ export default function App() {
           activeSlideIndex={activeSlideIndex}
           onSelectSlide={(idx) => goToSlide(idx)}
           parallaxProgress={parallaxProgress}
-          audioEnabled={audioEnabled}
-          onToggleAudio={handleToggleAudio}
           eegBoosted={false}
-          ambientFreqHz={ambientFreqHz}
         />
 
         {/* Horizontal Carousel Viewport */}

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { MODES_DATA, type CognitiveModeSpec } from '../../utils/cognitiveEngine';
-import { synthAudio } from '../../utils/synthAudio';
 import { dispatchParticleBurst } from '../NeuralParticleField';
 import { TiltCard } from '../TiltCard';
 
@@ -340,13 +339,11 @@ export function CoPilotModesSlide({ isActive, onSimulateProtocol }: CoPilotModes
 
   const handleSelectMode = (idx: number) => {
     setSelectedIndex(idx);
-    synthAudio.playBeep(640 + idx * 80, 'triangle', 0.12, 0.04);
   };
 
   const handleProtocolClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     dispatchParticleBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, 32, activeMode.accentHex);
-    synthAudio.playProtocolChord();
     onSimulateProtocol();
     setPulseRingKey((k) => k + 1);
     setSimStage('syncing');

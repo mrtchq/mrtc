@@ -6,7 +6,6 @@ import {
   validateWaitlistForm,
   type WaitlistFormValues,
 } from '../../utils/cognitiveEngine';
-import { synthAudio } from '../../utils/synthAudio';
 import { dispatchParticleBurst } from '../NeuralParticleField';
 import { TiltCard } from '../TiltCard';
 
@@ -31,13 +30,11 @@ export function WaitlistSlide({ isActive }: WaitlistSlideProps) {
     const validation = validateWaitlistForm(form);
     if (!validation.valid) {
       setErrors(validation.errors);
-      synthAudio.playBeep(260, 'sawtooth', 0.14, 0.03);
       return;
     }
 
     setErrors({});
     setSubmittedName(form.name.trim());
-    synthAudio.playSuccessChime();
 
     const submitBtn = e.currentTarget.querySelector('button[type="submit"]');
     if (submitBtn) {

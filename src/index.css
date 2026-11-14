@@ -45,7 +45,7 @@ body,
   scrollbar-width: none;
 }
 
-/* Dual Hemisphere Ambient Glows (static GPU texture, zero per-frame repaints) */
+/* Dual Hemisphere Ambient Glows with subtle compositor breathing */
 .nebula-glow {
   position: fixed;
   inset: 0;
@@ -56,16 +56,20 @@ body,
     radial-gradient(circle at 84% 65%, rgba(236, 72, 153, 0.16) 0%, transparent 50%),
     radial-gradient(circle at 72% 85%, rgba(16, 185, 129, 0.14) 0%, transparent 45%),
     radial-gradient(ellipse at 50% 100%, rgba(255, 209, 89, 0.2) 0%, transparent 60%);
+  animation: nebulaPulse 8s ease-in-out infinite;
+  will-change: transform, opacity;
   z-index: 1;
 }
 
-/* Subtle circuit matrix pattern */
+/* Subtle circuit matrix pattern with gentle opacity pulse */
 .circuit-grid {
   background-image:
     radial-gradient(rgba(245, 184, 46, 0.12) 1px, transparent 1px),
     radial-gradient(rgba(147, 51, 234, 0.08) 1px, transparent 1px);
   background-size: 40px 40px, 80px 80px;
   background-position: 0 0, 20px 20px;
+  animation: circuitPulse 6.5s ease-in-out infinite;
+  will-change: opacity;
 }
 
 /* 3D Cyberpunk Horizon Grid (static rasterized grid, no continuous background-position repaint) */
@@ -101,8 +105,82 @@ body,
     rgba(0, 229, 255, 0.08) 60%,
     transparent 74%
   );
+  animation: horizonPulse 5.5s ease-in-out infinite;
+  will-change: transform, opacity;
   pointer-events: none;
   z-index: 2;
+}
+
+@keyframes nebulaPulse {
+  0%,
+  100% {
+    opacity: 0.78;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.035);
+  }
+}
+
+@keyframes circuitPulse {
+  0%,
+  100% {
+    opacity: 0.24;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes horizonPulse {
+  0%,
+  100% {
+    opacity: 0.68;
+    transform: translateX(-50%) scaleY(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scaleY(1.06);
+  }
+}
+
+/* Bottom-center active slide dot focus pulse (compositor-only transform & opacity) */
+.slide-dot-pulse-ring {
+  animation: slideDotRingPulse 2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  will-change: transform, opacity;
+}
+
+.slide-dot-pulse-core {
+  animation: slideDotCorePulse 2s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes slideDotRingPulse {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.85;
+  }
+  70% {
+    transform: scale(2.35);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(2.35);
+    opacity: 0;
+  }
+}
+
+@keyframes slideDotCorePulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.92;
+  }
+  50% {
+    transform: scale(1.24);
+    opacity: 1;
+  }
 }
 
 .hud-scanlines {
@@ -207,6 +285,11 @@ body,
 
 @media (prefers-reduced-motion: reduce) {
   .btn-glow-pulse::after,
+  .nebula-glow,
+  .circuit-grid,
+  .horizon-light-beam,
+  .slide-dot-pulse-ring,
+  .slide-dot-pulse-core,
   .cyber-card,
   .cyber-lines span,
   .card-particles span,

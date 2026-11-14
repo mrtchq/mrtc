@@ -5,7 +5,6 @@ import {
   PAGE_SECTIONS,
   SYNAPSE_NODES,
   TOTAL_SLIDES,
-  calculateAmbientHumState,
   calculateParticlePoolBudget,
   clampSlideIndex,
   formatSectorLabel,
@@ -92,21 +91,6 @@ test('MODES_DATA, SYNAPSE_NODES, and PAGE_SECTIONS contain complete specs', () =
   }
   assert.equal(SYNAPSE_NODES.length, 8);
   assert.equal(PAGE_SECTIONS.length, 5);
-});
-
-test('calculateAmbientHumState modulates pitch, harmonic, filter, and gain with slide progress and swipe velocity', () => {
-  const slide1Idle = calculateAmbientHumState(0, 0);
-  const slide5Idle = calculateAmbientHumState(1, 0);
-  const midSwiping = calculateAmbientHumState(0.5, 0.85);
-  const clampedLow = calculateAmbientHumState(-2, -1);
-  const clampedHigh = calculateAmbientHumState(5, 3);
-
-  assert.ok(slide5Idle.baseFreqHz > slide1Idle.baseFreqHz);
-  assert.ok(slide5Idle.harmonicFreqHz > slide5Idle.baseFreqHz);
-  assert.ok(midSwiping.gain > slide1Idle.gain);
-  assert.ok(midSwiping.filterCutoffHz > slide1Idle.filterCutoffHz);
-  assert.deepEqual(clampedLow, slide1Idle);
-  assert.ok(clampedHigh.gain > slide5Idle.gain);
 });
 
 

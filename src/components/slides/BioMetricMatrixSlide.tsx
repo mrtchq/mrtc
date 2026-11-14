@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { SYNAPSE_NODES, type SynapseNodeSpec } from '../../utils/cognitiveEngine';
-import { synthAudio } from '../../utils/synthAudio';
 import { dispatchParticleBurst } from '../NeuralParticleField';
 import { TiltCard } from '../TiltCard';
 
@@ -22,7 +21,6 @@ export function BioMetricMatrixSlide({ isActive }: BioMetricMatrixSlideProps) {
   const handleNodeClick = (e: React.MouseEvent<HTMLButtonElement>, node: SynapseNodeSpec) => {
     const rect = e.currentTarget.getBoundingClientRect();
     dispatchParticleBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, 18, node.colorHex);
-    synthAudio.playBeep(700, 'sine', 0.12, 0.045);
     setSelectedNodeId(node.id);
     setLogs((prev) => [node.diagnosticLog, prev[0], prev[1]].slice(0, 3));
   };

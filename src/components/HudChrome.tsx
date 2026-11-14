@@ -1,16 +1,14 @@
 import React from 'react';
 import { motion, useSpring, useTransform, type MotionValue } from 'motion/react';
-import { ChevronLeft, ChevronRight, Volume2, VolumeX } from 'lucide-react';
-import { formatSectorLabel, PAGE_SECTIONS, TOTAL_SLIDES } from '../utils/cognitiveEngine';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { PAGE_SECTIONS, TOTAL_SLIDES } from '../utils/cognitiveEngine';
+import { dispatchParticleBurst } from './NeuralParticleField';
 
 interface HeaderHudProps {
   activeSlideIndex: number;
   onSelectSlide: (index: number) => void;
   parallaxProgress: MotionValue<number>;
-  audioEnabled: boolean;
-  onToggleAudio: () => void;
   eegBoosted: boolean;
-  ambientFreqHz: number;
 }
 
 const EEG_BARS = [
@@ -26,10 +24,7 @@ export function HeaderHud({
   activeSlideIndex,
   onSelectSlide,
   parallaxProgress,
-  audioEnabled,
-  onToggleAudio,
   eegBoosted,
-  ambientFreqHz,
 }: HeaderHudProps) {
   const mappedProgress = useTransform(parallaxProgress, [0, 1], [1 / TOTAL_SLIDES, 1]);
   const smoothProgress = useSpring(mappedProgress, { stiffness: 220, damping: 28, restDelta: 0.001 });
@@ -136,10 +131,10 @@ export function HeaderHud({
         })}
       </nav>
 
-      {/* EEG Spectrum & Audio Toggle */}
-      <div className="flex items-center space-x-3 shrink-0">
+      {/* EEG Spectrum */}
+      <div className="flex items-center shrink-0">
         <div
-          className={`hidden xl:flex items-center space-x-2 bg-space-950/90 px-3.5 py-1.5 rounded-full border transition-colors ${
+          className={`hidden sm:flex items-center space-x-2 bg-space-950/90 px-3.5 py-1.5 rounded-full border transition-colors ${
             eegBoosted ? 'border-gold-400 shadow-[0_0_16px_rgba(255,209,89,0.35)]' : 'border-purple-500/30'
           }`}
         >
@@ -169,27 +164,6 @@ export function HeaderHud({
             {eegBoosted ? '120Hz SUPER-GAMMA' : '40Hz GAMMA'}
           </span>
         </div>
-
-        <motion.button
-          type="button"
-          onClick={onToggleAudio}
-          whileHover={{ scale: 1.04 }}
-          whileTap={{ scale: 0.94 }}
-          data-ambient-hz={audioEnabled ? ambientFreqHz : 0}
-          aria-pressed={audioEnabled}
-          aria-label={audioEnabled ? 'Mute Ambient Hum and Synth Sound Effects' : 'Enable Ambient Hum and Synth Sound Effects'}
-          className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-space-850/90 border border-slate-700 hover:border-gold-400 transition-colors text-xs font-rajdhani tracking-wider text-slate-300 hover:text-white whitespace-nowrap shrink-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
-          title="Toggle Ambient Hum & Synth Sound Effects"
-        >
-          {audioEnabled ? (
-            <Volume2 className="w-4 h-4 text-gold-400" aria-hidden="true" />
-          ) : (
-            <VolumeX className="w-4 h-4 text-slate-500" aria-hidden="true" />
-          )}
-          <span className="hidden sm:inline tabular-nums">
-            {audioEnabled ? `HUM ${ambientFreqHz}Hz` : 'SFX: OFF'}
-          </span>
-        </motion.button>
       </div>
 
       {/* Horizontal Carousel Progress Hairline */}
@@ -212,18 +186,19 @@ interface FooterHudProps {
 
 export function FooterHud({ activeSlideIndex, onSelectSlide, onPrevSlide, onNextSlide }: FooterHudProps) {
   return (
-    <footer className="relative z-30 shrink-0 px-4 sm:px-6 py-3 sm:py-3.5 border-t border-gold-400/20 bg-[#080811]/95 flex items-center justify-between gap-3">
+    <footer className="relative z-30 shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 border-t border-gold-400/20 bg-[#080811]/95 grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3">
       {/* Sector Coordinates & Status */}
-      <div className="flex items-center space-x-3 font-rajdhani text-xs tracking-widest text-slate-400 shrink-0">
+      <div className="justify-self-start flex items-center space-x-3 font-rajdhani text-[11px] sm:text-xs tracking-widest text-slate-400 min-w-0">
         <span data-testid="sector-display" className="gold-gradient-text font-bold font-orbitron tabular-nums whitespace-nowrap">
-          {formatSectorLabel(activeSlideIndex, TOTAL_SLIDES)}
+          <span className="hidden sm:inline">SECTOR </span>
+          {String(activeSlideIndex + 1).padStart(2, '0')} / {String(TOTAL_SLIDES).padStart(2, '0')}
         </span>
         <span className="hidden lg:inline text-slate-700">|</span>
         <span className="hidden lg:inline text-slate-300 whitespace-nowrap">DUAL-SYNAPSE OS v2.4</span>
       </div>
 
-      {/* Carousel Controls & Pagination Pills */}
-      <div className="flex items-center space-x-2 sm:space-x-3">
+      {/* Bottom-Center Carousel Controls & Glowing Slide Dot Indicators */}
+      <div className="justify-self-center flex items-center space-x-1 sm:space-x-3">
         <motion.button
           type="button"
           onClick={onPrevSlide}
@@ -234,7 +209,12 @@ export function FooterHud({ activeSlideIndex, onSelectSlide, onPrevSlide, onNext
           <ChevronLeft className="w-4 h-4" aria-hidden="true" />
         </motion.button>
 
-        <div className="flex items-center space-x-2" role="tablist" aria-label="Sector Slides">
+        <div
+          className="flex items-center space-x-0.5 sm:space-x-1.5"
+          role="tablist"
+          aria-label="Slide Indicators"
+          data-testid="slide-dot-indicators"
+        >
           {PAGE_SECTIONS.map((section, idx) => {
             const isActive = idx === activeSlideIndex;
             return (
@@ -244,13 +224,33 @@ export function FooterHud({ activeSlideIndex, onSelectSlide, onPrevSlide, onNext
                 role="tab"
                 aria-selected={isActive}
                 aria-label={`Go to slide ${idx + 1}: ${section.navLabel}`}
-                onClick={() => onSelectSlide(idx)}
-                className={`h-2 rounded-full transition-all duration-300 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400 ${
-                  isActive
-                    ? 'w-8 bg-gradient-to-r from-gold-400 via-chroma-cyan to-chroma-magenta shadow-[0_0_10px_rgba(255,209,89,0.5)]'
-                    : 'w-2.5 bg-slate-700 hover:bg-slate-500'
-                }`}
-              />
+                data-testid={`slide-dot-${idx + 1}`}
+                data-active={isActive ? 'true' : 'false'}
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  dispatchParticleBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, 12, '#00e5ff');
+                  onSelectSlide(idx);
+                }}
+                className="group relative w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+              >
+                {isActive ? (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="slide-dot-pulse-ring absolute w-3 h-3 rounded-full border border-chroma-cyan/80 bg-gold-400/25 shadow-[0_0_10px_rgba(0,229,255,0.65)] pointer-events-none"
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="slide-dot-pulse-core relative w-2.5 h-2.5 rounded-full bg-gradient-to-br from-gold-300 via-chroma-cyan to-chroma-magenta shadow-[0_0_12px_rgba(0,229,255,0.9),0_0_20px_rgba(255,209,89,0.65)]"
+                    />
+                  </>
+                ) : (
+                  <span
+                    aria-hidden="true"
+                    className="w-2 h-2 rounded-full bg-gold-300/45 border border-gold-300/35 shadow-[0_0_8px_rgba(255,209,89,0.32)] transition-all duration-200 group-hover:scale-125 group-hover:bg-gold-300 group-hover:shadow-[0_0_12px_rgba(255,209,89,0.75)]"
+                  />
+                )}
+              </button>
             );
           })}
         </div>
@@ -267,7 +267,7 @@ export function FooterHud({ activeSlideIndex, onSelectSlide, onPrevSlide, onNext
       </div>
 
       {/* Keyboard & Swipe Shortcut Hint */}
-      <div className="hidden sm:flex font-rajdhani text-xs text-slate-400 tracking-wider items-center space-x-2 shrink-0">
+      <div className="justify-self-end hidden sm:flex font-rajdhani text-xs text-slate-400 tracking-wider items-center space-x-2 shrink-0">
         <span className="px-1.5 py-0.5 rounded bg-space-950 border border-slate-700 text-gold-300 text-[10px]">←</span>
         <span className="px-1.5 py-0.5 rounded bg-space-950 border border-slate-700 text-gold-300 text-[10px]">→</span>
         <span className="whitespace-nowrap">SWIPE OR KEYS TO NAVIGATE</span>

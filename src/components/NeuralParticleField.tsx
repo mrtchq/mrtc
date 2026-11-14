@@ -32,6 +32,8 @@ interface StarParticle {
   speedY: number;
   color: string;
   alpha: number;
+  twinklePhase: number;
+  twinkleSpeed: number;
 }
 
 interface BokehOrb {
@@ -177,6 +179,8 @@ export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParti
           speedY: depth === 0 ? 0.14 : depth === 1 ? 0.26 : 0.42,
           color: palette[Math.floor(Math.random() * palette.length)],
           alpha: depth === 0 ? 0.45 + Math.random() * 0.3 : depth === 1 ? 0.65 + Math.random() * 0.25 : 0.8 + Math.random() * 0.2,
+          twinklePhase: Math.random() * Math.PI * 2,
+          twinkleSpeed: 0.02 + Math.random() * 0.03,
         };
       });
 
@@ -341,12 +345,13 @@ export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParti
         }
       }
 
-      // 1. Multi-depth Parallax Starfield
+      // 1. Multi-depth Parallax Starfield with subtle twinkle pulse
       const depthSpans = [70, 145, 230];
       for (let i = 0; i < stars.length; i++) {
         const s = stars[i];
         if (!prefersReducedMotion) {
           s.y -= s.speedY * warpMultiplier * dtScale;
+          s.twinklePhase += s.twinkleSpeed * dtScale;
           if (s.y < -8) {
             s.y = height + 4;
             s.x = Math.random() * width;
@@ -354,7 +359,8 @@ export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParti
         }
         const shiftedX = s.x - progress * depthSpans[s.depth];
         const drawX = ((shiftedX % width) + width) % width;
-        ctx.globalAlpha = s.alpha;
+        const twinkle = 0.68 + 0.32 * Math.sin(s.twinklePhase);
+        ctx.globalAlpha = s.alpha * twinkle;
         ctx.fillStyle = s.color;
         if (warpMultiplier > 2.2) {
           const streakLen = s.size + warpMultiplier * (s.depth + 1) * 0.85;
@@ -365,13 +371,13 @@ export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParti
       }
       ctx.globalAlpha = 1;
 
-      // 2. Soft Drifting Bokeh Embers (cached glow sprites)
+      // 2. Soft Drifting Bokeh Embers with subtle breath pulse
       for (let b = 0; b < bokehOrbs.length; b++) {
         const orb = bokehOrbs[b];
         if (!prefersReducedMotion) {
           orb.x += orb.vx * dtScale;
           orb.y += orb.vy * dtScale;
-          orb.phase += 0.015 * dtScale;
+          orb.phase += 0.02 * dtScale;
           if (orb.y < -orb.radius * 2) {
             orb.y = height + orb.radius * 2;
             orb.x = Math.random() * width;
@@ -382,8 +388,10 @@ export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParti
         const sprite = glowSprites.get(orb.color.hex);
         if (sprite) {
           const orbX = ((orb.x - progress * 90) % width + width) % width;
-          ctx.globalAlpha = 0.24 + Math.sin(orb.phase) * 0.1;
-          ctx.drawImage(sprite, orbX - orb.radius, orb.y - orb.radius, orb.radius * 2, orb.radius * 2);
+          const wave = Math.sin(orb.phase);
+          const pulseRadius = orb.radius * (1 + 0.12 * wave);
+          ctx.globalAlpha = 0.22 + 0.14 * wave;
+          ctx.drawImage(sprite, orbX - pulseRadius, orb.y - pulseRadius, pulseRadius * 2, pulseRadius * 2);
         }
       }
       ctx.globalAlpha = 1;
@@ -458,14 +466,15 @@ export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParti
           }
         }
 
-        for (let j = i + 1; j < nodes.length; j++) {
+      const networkBreath = prefersReducedMotion ? 1 : 0.8 + 0.2 * Math.sin(now * 0.0018);
+      for (let j = i + 1; j < nodes.length; j++) {
           const p2 = nodes[j];
           const dx = p2.x - p.x;
           const dy = p2.y - p.y;
           const distSq = dx * dx + dy * dy;
           if (distSq < connectDistSq) {
             const dist = Math.sqrt(distSq);
-            const alpha = (1 - dist / connectDist) * 0.32;
+            const alpha = (1 - dist / connectDist) * 0.32 * networkBreath;
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(p2.x, p2.y);
@@ -484,7 +493,8 @@ export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParti
           }
         }
 
-        const pulse = 1 + Math.sin(p.phase) * 0.24;
+        const pulseWave = Math.sin(p.phase);
+        const pulse = 1 + pulseWave * 0.26;
         const currentRadius = p.radius * pulse;
 
         if (warpMultiplier > 2.8) {
@@ -498,8 +508,8 @@ export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParti
         } else {
           const sprite = glowSprites.get(p.color.hex);
           if (sprite) {
-            const haloSize = currentRadius * 4.5;
-            ctx.globalAlpha = 0.48;
+            const haloSize = currentRadius * 4.8;
+            ctx.globalAlpha = 0.4 + pulseWave * 0.2;
             ctx.drawImage(sprite, p.x - haloSize, p.y - haloSize, haloSize * 2, haloSize * 2);
             ctx.globalAlpha = 1;
           }
