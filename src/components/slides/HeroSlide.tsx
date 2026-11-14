@@ -2,6 +2,8 @@ import React from 'react';
 import { motion, useTransform, type MotionValue } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
 import { dispatchParticleBurst } from '../NeuralParticleField';
+import { VoiceOrb } from '../VoiceOrb';
+import { useVoiceOrbSimulation } from '../../hooks/useVoiceOrbSimulation';
 
 interface HeroSlideProps {
   isActive: boolean;
@@ -32,7 +34,16 @@ const itemVariants = {
 export function HeroSlide({ isActive, onSelectSlide, parallaxProgress }: HeroSlideProps) {
   const bgOrbitX = useTransform(parallaxProgress, [0, 1], [0, 160]);
   const bgOrbitScale = useTransform(parallaxProgress, [0, 0.35], [1, 1.15]);
-  const buttonsX = useTransform(parallaxProgress, [0, 1], [0, -60]);
+  const contentX = useTransform(parallaxProgress, [0, 1], [0, -60]);
+
+  const {
+    orbState,
+    cycleOrbState,
+    onHeroButtonEnter,
+    onHeroButtonLeave,
+    onHeroButtonDown,
+    triggerHeroButtonAction,
+  } = useVoiceOrbSimulation('idle');
 
   const handleActionClick = (
     e: React.MouseEvent<HTMLButtonElement>,
@@ -41,7 +52,7 @@ export function HeroSlide({ isActive, onSelectSlide, parallaxProgress }: HeroSli
   ) => {
     const rect = e.currentTarget.getBoundingClientRect();
     dispatchParticleBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, 26, colorHex);
-    onSelectSlide(slideIndex);
+    triggerHeroButtonAction(() => onSelectSlide(slideIndex));
   };
 
   return (
@@ -51,7 +62,7 @@ export function HeroSlide({ isActive, onSelectSlide, parallaxProgress }: HeroSli
       initial="hidden"
       animate={isActive ? 'visible' : 'visible'}
       aria-label="Hero Overview"
-      className="slide-section min-w-full w-full h-full overflow-y-auto no-scrollbar flex flex-col items-center justify-center px-5 sm:px-14 md:px-20 text-center relative py-6 sm:py-8"
+      className="slide-section min-w-full w-full h-full overflow-hidden flex flex-col items-center justify-between px-5 sm:px-14 md:px-20 text-center relative pt-4 pb-3 sm:pt-6 sm:pb-5"
     >
       {/* Parallax Deep Orbital Ring Backdrop */}
       <motion.div
@@ -66,25 +77,38 @@ export function HeroSlide({ isActive, onSelectSlide, parallaxProgress }: HeroSli
       </motion.div>
 
       <motion.div
-        style={{ x: buttonsX }}
-        className="my-auto max-w-4xl w-full mx-auto flex flex-col items-center justify-center relative z-10 will-change-transform"
+        style={{ x: contentX }}
+        className="w-full h-full max-w-4xl mx-auto flex flex-col items-center justify-between relative z-10 will-change-transform"
       >
-        <div
-          aria-hidden="true"
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full pointer-events-none opacity-40"
-          style={{
-            background:
-              'radial-gradient(circle, rgba(255,209,89,0.22) 0%, rgba(236,72,153,0.14) 42%, transparent 70%)',
-          }}
-        />
-
-        {/* Action Buttons */}
+        {/* Centerpiece Enlarged Voice Orb */}
         <motion.div
           variants={itemVariants}
-          className="relative flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto"
+          className="flex-1 min-h-0 w-full flex items-center justify-center relative"
+        >
+          <div
+            aria-hidden="true"
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] rounded-full pointer-events-none opacity-40"
+            style={{
+              background:
+                'radial-gradient(circle, rgba(255,209,89,0.2) 0%, rgba(236,72,153,0.14) 42%, transparent 70%)',
+            }}
+          />
+          <VoiceOrb orbState={orbState} onOrbClick={cycleOrbState} />
+        </motion.div>
+
+        {/* Action Buttons Pushed Down Just Above Pagination Bar */}
+        <motion.div
+          variants={itemVariants}
+          data-testid="hero-action-buttons"
+          className="shrink-0 relative flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full sm:w-auto pb-1 sm:pb-2"
         >
           <motion.button
             type="button"
+            onMouseEnter={onHeroButtonEnter}
+            onMouseLeave={onHeroButtonLeave}
+            onFocus={onHeroButtonEnter}
+            onBlur={onHeroButtonLeave}
+            onPointerDown={onHeroButtonDown}
             onClick={(e) => handleActionClick(e, 2, '#ffd159')}
             whileHover={{ y: -2, scale: 1.03 }}
             whileTap={{ scale: 0.96 }}
@@ -96,6 +120,11 @@ export function HeroSlide({ isActive, onSelectSlide, parallaxProgress }: HeroSli
 
           <motion.button
             type="button"
+            onMouseEnter={onHeroButtonEnter}
+            onMouseLeave={onHeroButtonLeave}
+            onFocus={onHeroButtonEnter}
+            onBlur={onHeroButtonLeave}
+            onPointerDown={onHeroButtonDown}
             onClick={(e) => handleActionClick(e, 4, '#ec4899')}
             whileHover={{ y: -2, scale: 1.03 }}
             whileTap={{ scale: 0.96 }}

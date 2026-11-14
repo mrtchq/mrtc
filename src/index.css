@@ -295,7 +295,15 @@ body,
   .card-particles span,
   .scan-line,
   .card-glare,
-  .glowing-elements div {
+  .glowing-elements div,
+  .va-core,
+  .va-mesh,
+  .va-wave,
+  .va-orb,
+  .va-rings,
+  .va-rings--b,
+  .va-svg--spinner,
+  .va-chip-icon {
     animation: none !important;
   }
 }
@@ -734,5 +742,491 @@ body,
   }
   50% {
     opacity: 0.95;
+  }
+}
+
+/* =========================================================
+   Multi-State Interactive Voice Orb (Idle, Listen, Think, Speak)
+   ========================================================= */
+.va-orb-wrap {
+  --va-size: clamp(13.5rem, 38dvh, 22rem);
+  --va-idle: #06b6d4;
+  --va-listen: #10b981;
+  --va-process: #8b5cf6;
+  --va-speak: #f59e0b;
+  --va-ink: #ffffff;
+  --va-surface: rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  perspective: 90em;
+  position: relative;
+  font-family: var(--font-rajdhani), system-ui, -apple-system, sans-serif;
+  box-sizing: border-box;
+  padding: 1.5rem;
+}
+
+.va-state {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.va-orb-button {
+  --tone: var(--va-idle);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  outline: none;
+  cursor: pointer;
+}
+
+.va-orb {
+  position: relative;
+  width: var(--va-size);
+  height: var(--va-size);
+  border-radius: 50%;
+  transform-style: preserve-3d;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.25), transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.08), transparent 65%),
+    radial-gradient(circle at 50% 50%, var(--tone), transparent 75%);
+  box-shadow:
+    0 0 3.2em 1.05em color-mix(in oklab, var(--tone) 60%, #000 40%),
+    inset 0 -0.6em 2.6em 0.5em color-mix(in oklab, var(--tone) 35%, #000 65%),
+    inset 0 0.6em 2.2em rgba(255, 255, 255, 0.16);
+  transition:
+    transform 0.5s cubic-bezier(0.34, 1.26, 0.64, 1),
+    box-shadow 0.5s cubic-bezier(0.34, 1.26, 0.64, 1),
+    background 0.6s ease;
+  will-change: transform;
+}
+
+.va-orb-button:hover .va-orb,
+.va-orb-button:focus .va-orb {
+  transform: scale(1.06);
+  box-shadow:
+    0 0 4em 1.35em color-mix(in oklab, var(--tone) 75%, #000 25%),
+    inset 0 -0.7em 3.2em 0.65em color-mix(in oklab, var(--tone) 40%, #000 60%),
+    inset 0 0.7em 2.6em rgba(255, 255, 255, 0.2);
+}
+
+.va-orb-button:active .va-orb {
+  transform: scale(0.96);
+  transition-duration: 0.12s;
+}
+
+.va-orb-button:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--tone) 85%, #fff 15%);
+  outline-offset: 0.6rem;
+  border-radius: 9999px;
+}
+
+.va-core {
+  position: absolute;
+  top: 28%;
+  left: 28%;
+  width: 44%;
+  height: 44%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 45% 45%, #ffffff, var(--tone) 70%);
+  box-shadow:
+    0 0 3.6em 0.3em var(--tone),
+    inset 0 0 1.6em rgba(255, 255, 255, 0.6);
+  animation: va-core-idle 3.8s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.va-glow {
+  position: absolute;
+  inset: -14%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in oklab, var(--tone) 38%, transparent 62%),
+    transparent 68%
+  );
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.va-glow-secondary {
+  position: absolute;
+  inset: -24%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in oklab, var(--tone) 24%, transparent 76%),
+    transparent 70%
+  );
+  pointer-events: none;
+  opacity: 0.65;
+}
+
+.va-mesh {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    transparent 0% 2.8%,
+    color-mix(in oklab, var(--tone) 45%, #000 55%) 3.2% 3.5%,
+    transparent 3.8%
+  );
+  opacity: 0.32;
+  mix-blend-mode: overlay;
+  animation: va-mesh-spin 30s linear infinite;
+  transform: translateZ(-0.8em);
+  will-change: transform;
+}
+
+.va-particles {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.45) 1.2%, transparent 1.4%),
+    radial-gradient(circle at 70% 25%, rgba(255, 255, 255, 0.32) 1.6%, transparent 1.8%),
+    radial-gradient(circle at 80% 65%, rgba(255, 255, 255, 0.38) 1.3%, transparent 1.5%),
+    radial-gradient(circle at 25% 75%, rgba(255, 255, 255, 0.28) 1.8%, transparent 2%);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.va-rings {
+  position: absolute;
+  inset: -7%;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in oklab, var(--tone) 60%, #fff 40%);
+  opacity: 0.32;
+  pointer-events: none;
+}
+
+.va-rings--b {
+  inset: -14%;
+  opacity: 0.2;
+  border-width: 1px;
+}
+
+.va-wave {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--tone);
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.va-wave--1 {
+  animation-delay: 0s;
+}
+.va-wave--2 {
+  animation-delay: 0.6s;
+}
+.va-wave--3 {
+  animation-delay: 1.2s;
+}
+
+.va-center-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4.2em;
+  height: 4.2em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--va-ink);
+  pointer-events: none;
+}
+
+.va-icon {
+  position: absolute;
+  width: 4.2em;
+  height: 4.2em;
+  opacity: 0;
+  transform: scale(0.85);
+  transition:
+    opacity 0.32s ease,
+    transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.va-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.va-label {
+  position: relative;
+  margin-top: 2.25rem;
+  width: 100%;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-orbitron);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.25em;
+}
+
+.va-text {
+  position: absolute;
+  opacity: 0;
+  transform: translateY(0.45em);
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  white-space: nowrap;
+}
+
+/* State 1: Idle / Ready */
+.va-state--idle:checked ~ .va-orb-button {
+  --tone: var(--va-idle);
+}
+.va-state--idle:checked ~ .va-orb-button .va-core {
+  animation: va-core-idle 4s ease-in-out infinite;
+}
+.va-state--idle:checked ~ .va-orb-button .va-text--idle {
+  opacity: 1;
+  transform: translateY(0);
+}
+.va-state--idle:checked ~ .va-orb-button .va-icon--idle {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* State 2: Listening */
+.va-state--listen:checked ~ .va-orb-button {
+  --tone: var(--va-listen);
+}
+.va-state--listen:checked ~ .va-orb-button .va-core {
+  animation: va-core-listen 1s ease-in-out infinite;
+}
+.va-state--listen:checked ~ .va-orb-button .va-wave {
+  opacity: 0.85;
+  animation: va-ripple 1.8s ease-out infinite;
+}
+.va-state--listen:checked ~ .va-orb-button .va-mesh {
+  animation-duration: 20s;
+  opacity: 0.38;
+}
+.va-state--listen:checked ~ .va-orb-button .va-text--listen {
+  opacity: 1;
+  transform: translateY(0);
+}
+.va-state--listen:checked ~ .va-orb-button .va-icon--listen {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* State 3: Thinking / Processing */
+.va-state--process:checked ~ .va-orb-button {
+  --tone: var(--va-process);
+}
+.va-state--process:checked ~ .va-orb-button .va-core {
+  animation: va-core-process 1.3s ease-in-out infinite;
+}
+.va-state--process:checked ~ .va-orb-button .va-orb {
+  animation: va-tilt 5s ease-in-out infinite;
+}
+.va-state--process:checked ~ .va-orb-button .va-mesh {
+  animation-duration: 14s;
+  opacity: 0.44;
+}
+.va-state--process:checked ~ .va-orb-button .va-rings {
+  animation: va-orbit 7s linear infinite;
+}
+.va-state--process:checked ~ .va-orb-button .va-rings--b {
+  animation: va-orbit 9s linear infinite reverse;
+}
+.va-state--process:checked ~ .va-orb-button .va-text--process {
+  opacity: 1;
+  transform: translateY(0);
+}
+.va-state--process:checked ~ .va-orb-button .va-icon--process {
+  opacity: 1;
+  transform: scale(1);
+}
+.va-state--process:checked ~ .va-orb-button .va-svg--spinner {
+  animation: va-spinner 2.2s linear infinite;
+}
+
+/* State 4: Speaking */
+.va-state--speak:checked ~ .va-orb-button {
+  --tone: var(--va-speak);
+}
+.va-state--speak:checked ~ .va-orb-button .va-core {
+  animation: va-core-speak 0.38s ease-in-out infinite alternate;
+}
+.va-state--speak:checked ~ .va-orb-button .va-orb {
+  animation: va-bounce 1.1s ease-in-out infinite;
+}
+.va-state--speak:checked ~ .va-orb-button .va-text--speak {
+  opacity: 1;
+  transform: translateY(0);
+}
+.va-state--speak:checked ~ .va-orb-button .va-icon--speak {
+  opacity: 1;
+  transform: scale(1);
+}
+.va-state--speak:checked ~ .va-dock .va-chip--speak {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--va-speak) 90%, #fff 10%),
+    color-mix(in oklab, var(--va-speak) 75%, #fff 25%)
+  );
+  color: #241404;
+  border-color: var(--va-speak);
+  box-shadow: 0 0 18px color-mix(in oklab, var(--va-speak) 65%, transparent 35%);
+}
+.va-state--speak:checked ~ .va-dock .va-chip--speak .va-chip-icon {
+  background: rgba(255, 255, 255, 0.35);
+  animation: speak-wave 1.1s ease-in-out infinite;
+}
+
+@keyframes va-core-idle {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.95;
+  }
+}
+
+@keyframes va-core-listen {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.22);
+  }
+}
+
+@keyframes va-core-process {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.15) rotate(180deg);
+  }
+}
+
+@keyframes va-core-speak {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1.32);
+  }
+}
+
+@keyframes va-mesh-spin {
+  to {
+    transform: rotate(360deg) translateZ(-0.8em);
+  }
+}
+
+@keyframes va-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes va-ripple {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1.85);
+    opacity: 0;
+  }
+}
+
+@keyframes va-tilt {
+  0%,
+  100% {
+    transform: rotateX(0) rotateY(0) scale(1);
+  }
+  25% {
+    transform: rotateX(10deg) rotateY(-10deg) scale(1.02);
+  }
+  50% {
+    transform: rotateX(0) rotateY(0) scale(1);
+  }
+  75% {
+    transform: rotateX(-10deg) rotateY(10deg) scale(1.02);
+  }
+}
+
+@keyframes va-spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes va-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.5em);
+  }
+}
+
+@keyframes idle-ping {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.14);
+    opacity: 0.82;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes listen-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.22);
+  }
+}
+
+@keyframes process-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes speak-wave {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
   }
 }

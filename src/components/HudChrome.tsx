@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, useSpring, useTransform, type MotionValue } from 'motion/react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, X } from 'lucide-react';
 import { PAGE_SECTIONS, TOTAL_SLIDES } from '../utils/cognitiveEngine';
 import { dispatchParticleBurst } from './NeuralParticleField';
+import { useFirebaseAuth } from '../contexts/FirebaseContext';
 
 interface HeaderHudProps {
   activeSlideIndex: number;
@@ -20,6 +21,29 @@ const EEG_BARS = [
   { colorClass: 'bg-gold-400', keyframes: [0.4, 0.8, 0.6, 0.92, 0.4], duration: 1.15 },
 ];
 
+function GoogleMarkIcon() {
+  return (
+    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96Z"
+      />
+    </svg>
+  );
+}
+
 export function HeaderHud({
   activeSlideIndex,
   onSelectSlide,
@@ -28,6 +52,37 @@ export function HeaderHud({
 }: HeaderHudProps) {
   const mappedProgress = useTransform(parallaxProgress, [0, 1], [1 / TOTAL_SLIDES, 1]);
   const smoothProgress = useSpring(mappedProgress, { stiffness: 220, damping: 28, restDelta: 0.001 });
+
+  const { user, authReady, authLoading, authError, signInWithGoogle, signOutUser, clearAuthError } =
+    useFirebaseAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const menuContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setAvatarFailed(false);
+    if (!user) setMenuOpen(false);
+  }, [user]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (menuContainerRef.current && !menuContainerRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [menuOpen]);
+
+  const userInitial = (user?.displayName || user?.email || 'U').trim().charAt(0).toUpperCase();
 
   return (
     <header className="relative z-30 shrink-0 h-16 px-4 sm:px-6 flex items-center justify-between gap-4 sm:gap-8 border-b border-gold-400/20 bg-[#080811]/95 shadow-[0_4px_24px_rgba(0,0,0,0.65)]">
@@ -131,10 +186,10 @@ export function HeaderHud({
         })}
       </nav>
 
-      {/* EEG Spectrum */}
-      <div className="flex items-center shrink-0">
+      {/* Top-Right Telemetry & Google Authentication */}
+      <div className="flex items-center gap-3 shrink-0 relative" ref={menuContainerRef}>
         <div
-          className={`hidden sm:flex items-center space-x-2 bg-space-950/90 px-3.5 py-1.5 rounded-full border transition-colors ${
+          className={`hidden lg:flex items-center space-x-2 bg-space-950/90 px-3.5 py-1.5 rounded-full border transition-colors ${
             eegBoosted ? 'border-gold-400 shadow-[0_0_16px_rgba(255,209,89,0.35)]' : 'border-purple-500/30'
           }`}
         >
@@ -164,6 +219,98 @@ export function HeaderHud({
             {eegBoosted ? '120Hz SUPER-GAMMA' : '40Hz GAMMA'}
           </span>
         </div>
+
+        {/* Google Sign-In Button or Signed-In Google Profile Picture */}
+        {user ? (
+          <div className="relative flex items-center">
+            <button
+              type="button"
+              data-testid="user-profile-btn"
+              onClick={() => setMenuOpen((prev) => !prev)}
+              aria-expanded={menuOpen}
+              aria-haspopup="menu"
+              aria-label={`Account menu for ${user.displayName || user.email || 'signed-in user'}`}
+              className="w-9 h-9 rounded-full p-[1.5px] bg-gradient-to-tr from-gold-400 via-chroma-cyan to-chroma-magenta shadow-[0_0_14px_rgba(0,229,255,0.35)] hover:scale-105 transition-transform cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+            >
+              {user.photoURL && !avatarFailed ? (
+                <img
+                  src={user.photoURL}
+                  alt={user.displayName ? `${user.displayName} profile picture` : 'Google account profile picture'}
+                  referrerPolicy="no-referrer"
+                  data-testid="user-avatar-img"
+                  onError={() => setAvatarFailed(true)}
+                  className="w-full h-full rounded-full object-cover bg-space-950"
+                />
+              ) : (
+                <span
+                  data-testid="user-avatar-fallback"
+                  className="w-full h-full rounded-full bg-space-950 flex items-center justify-center font-orbitron text-xs font-bold text-gold-300"
+                >
+                  {userInitial}
+                </span>
+              )}
+            </button>
+
+            {menuOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 top-12 w-60 rounded-xl glass-hud border border-gold-400/30 p-3 shadow-2xl z-50"
+              >
+                <div className="pb-2.5 mb-2.5 border-b border-slate-800">
+                  <p className="text-sm font-semibold text-white truncate">
+                    {user.displayName || 'Google Account'}
+                  </p>
+                  {user.email && (
+                    <p className="text-xs text-slate-400 truncate mt-0.5">{user.email}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid="signout-btn"
+                  disabled={authLoading}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    void signOutUser();
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-orbitron tracking-wider uppercase text-slate-200 bg-space-900/90 hover:bg-space-800 border border-slate-700 hover:border-gold-400/50 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-gold-400" aria-hidden="true" />
+                  <span>Sign out</span>
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            data-testid="google-signin-btn"
+            disabled={!authReady || authLoading}
+            onClick={() => void signInWithGoogle()}
+            className="flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl bg-space-950/90 hover:bg-space-850 border border-gold-400/35 hover:border-gold-400 text-xs font-rajdhani font-bold tracking-wider uppercase text-slate-100 shadow-md transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-60 disabled:cursor-wait focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+          >
+            <GoogleMarkIcon />
+            <span className="hidden sm:inline">{authLoading ? 'Signing in...' : 'Sign in with Google'}</span>
+            <span className="sm:hidden">{authLoading ? '...' : 'Sign in'}</span>
+          </button>
+        )}
+
+        {authError && (
+          <div
+            role="alert"
+            className="absolute right-0 top-12 w-64 rounded-xl bg-space-950 border border-chroma-magenta/50 p-2.5 text-xs text-slate-200 shadow-xl flex items-start justify-between gap-2 z-50"
+          >
+            <span className="leading-snug">{authError}</span>
+            <button
+              type="button"
+              onClick={clearAuthError}
+              aria-label="Dismiss authentication error"
+              className="text-slate-400 hover:text-white shrink-0 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" aria-hidden="true" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Horizontal Carousel Progress Hairline */}

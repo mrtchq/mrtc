@@ -13,6 +13,7 @@ import {
   validateWaitlistForm,
   wrapSlideIndex,
 } from './cognitiveEngine';
+import { getNextVoiceOrbState, VOICE_ORB_STATE_ORDER } from '../hooks/useVoiceOrbSimulation';
 
 test('wrapSlideIndex wraps positively and negatively across 5 slides', () => {
   assert.equal(wrapSlideIndex(0, TOTAL_SLIDES), 0);
@@ -91,6 +92,14 @@ test('MODES_DATA, SYNAPSE_NODES, and PAGE_SECTIONS contain complete specs', () =
   }
   assert.equal(SYNAPSE_NODES.length, 8);
   assert.equal(PAGE_SECTIONS.length, 5);
+});
+
+test('getNextVoiceOrbState cycles cleanly through idle, listen, process, and speak', () => {
+  assert.deepEqual(VOICE_ORB_STATE_ORDER, ['idle', 'listen', 'process', 'speak']);
+  assert.equal(getNextVoiceOrbState('idle'), 'listen');
+  assert.equal(getNextVoiceOrbState('listen'), 'process');
+  assert.equal(getNextVoiceOrbState('process'), 'speak');
+  assert.equal(getNextVoiceOrbState('speak'), 'idle');
 });
 
 

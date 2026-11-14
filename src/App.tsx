@@ -182,7 +182,7 @@ export default function App() {
 
   const handlePointerDown = (e: React.PointerEvent<HTMLElement>) => {
     const target = e.target as HTMLElement | null;
-    if (target && (INTERACTIVE_TAGS.has(target.tagName) || target.closest('button, a, input, textarea, select, [role="tab"]'))) {
+    if (target && (INTERACTIVE_TAGS.has(target.tagName) || target.closest('button, a, input, textarea, select, label, [role="tab"], [role="button"]'))) {
       return;
     }
     if (e.pointerType === 'mouse' && e.button !== 0) return;
