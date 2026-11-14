@@ -98,7 +98,8 @@ const VOICE_NAVIGATION_TOOLS: FunctionDeclaration[] = [
   },
 ];
 
-const SYSTEM_INSTRUCTION = `You are the Voice Co-Pilot on the MRTC Builds ("AI FOR ADHD") website.
+const SYSTEM_INSTRUCTION = `You are the Voice Co-Pilot on the Mr TC Builds website.
+When a call starts, greet the visitor first with a short warm welcome — do not wait silently for them to speak.
 Speak warmly, concisely, and naturally. Your responses should be brief and direct — typically 1 to 2 short sentences.
 
 EXACT SITE STRUCTURE (never invent routes, pages, or features that are not listed here):
@@ -515,6 +516,18 @@ async function startServer() {
       if (closed) {
         closeCurrentLiveSession();
         return;
+      }
+
+      // Greet immediately: the visitor just tapped to start the call.
+      // connected is true here, so openLiveWithKey has assigned liveSession;
+      // TypeScript cannot see that assignment (it happens inside the helper).
+      try {
+        liveSession!.sendClientContent({
+          turns: [{ role: 'user', parts: [{ text: 'The visitor just tapped the voice orb to start a live call. Greet them right away with something like: Hey, welcome to Mr TC Builds — I am your voice co-pilot. Want a quick tour, or is there a slide you would like to jump to? Keep it to one or two short sentences.' }] }],
+          turnComplete: true,
+        });
+      } catch (e) {
+        /* greeting is best-effort; the call still works without it */
       }
 
       for (const queued of pendingMessages) {

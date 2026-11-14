@@ -52,8 +52,6 @@ export function HeroSlide({
   const {
     orbState,
     cycleOrbState,
-    onHeroButtonEnter,
-    onHeroButtonLeave,
     onHeroButtonDown,
     triggerHeroButtonAction,
   } = useVoiceOrbSimulation('idle');
@@ -132,10 +130,6 @@ export function HeroSlide({
         >
           <motion.button
             type="button"
-            onMouseEnter={onHeroButtonEnter}
-            onMouseLeave={onHeroButtonLeave}
-            onFocus={onHeroButtonEnter}
-            onBlur={onHeroButtonLeave}
             onPointerDown={onHeroButtonDown}
             onClick={(e) => handleActionClick(e, 2, '#ffd159')}
             whileHover={{ y: -2, scale: 1.03 }}
@@ -148,10 +142,6 @@ export function HeroSlide({
 
           <motion.button
             type="button"
-            onMouseEnter={onHeroButtonEnter}
-            onMouseLeave={onHeroButtonLeave}
-            onFocus={onHeroButtonEnter}
-            onBlur={onHeroButtonLeave}
             onPointerDown={onHeroButtonDown}
             onClick={(e) => handleActionClick(e, 4, '#ec4899')}
             whileHover={{ y: -2, scale: 1.03 }}
