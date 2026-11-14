@@ -104,17 +104,12 @@ export function HeroSlide({ isActive, onSelectSlide, parallaxProgress }: HeroSli
       >
         {/* Hero Headline */}
         <motion.div variants={itemVariants} className="my-2 relative">
-          <motion.div
+          <div
             aria-hidden="true"
-            className="absolute -inset-8 rounded-full pointer-events-none opacity-45 blur-3xl"
-            animate={{
-              scale: [0.95, 1.08, 0.95],
-              opacity: [0.35, 0.55, 0.35],
-            }}
-            transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute -inset-8 rounded-full pointer-events-none opacity-45"
             style={{
               background:
-                'radial-gradient(circle, rgba(255,209,89,0.35) 0%, rgba(236,72,153,0.28) 50%, transparent 75%)',
+                'radial-gradient(circle, rgba(255,209,89,0.28) 0%, rgba(236,72,153,0.2) 50%, transparent 72%)',
             }}
           />
           <h1 className="relative font-orbitron font-black text-5xl sm:text-7xl md:text-8xl tracking-tight leading-none">
@@ -181,7 +176,7 @@ export function HeroSlide({ isActive, onSelectSlide, parallaxProgress }: HeroSli
         <motion.div
           variants={itemVariants}
           style={{ x: kpiLayerX }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mt-8 w-full max-w-3xl pt-5 border-t border-slate-800/80 will-change-transform"
+          className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mt-5 sm:mt-8 w-full max-w-3xl pt-4 sm:pt-5 border-t border-slate-800/80 will-change-transform"
         >
           {KPI_CARDS.map((kpi) => (
             <TiltCard
@@ -205,12 +200,12 @@ export function HeroSlide({ isActive, onSelectSlide, parallaxProgress }: HeroSli
         </motion.div>
 
         {/* Horizontal Swipe Cue */}
-        <motion.div variants={itemVariants} className="mt-7">
+        <motion.div variants={itemVariants} className="mt-4 sm:mt-7">
           <motion.button
             type="button"
             onClick={(e) => handleActionClick(e, 1, '#00e5ff')}
-            animate={{ x: [0, 6, 0] }}
-            transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+            animate={isActive ? { x: [0, 6, 0] } : { x: 0 }}
+            transition={isActive ? { duration: 2.2, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.2 }}
             className="inline-flex items-center space-x-2 text-xs font-rajdhani tracking-[0.25em] uppercase text-slate-400 hover:text-gold-300 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400 rounded-full px-3 py-1.5"
           >
             <span>Swipe Horizontal to Explore</span>

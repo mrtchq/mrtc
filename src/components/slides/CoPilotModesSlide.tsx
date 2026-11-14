@@ -10,7 +10,15 @@ interface CoPilotModesSlideProps {
   onSimulateProtocol: () => void;
 }
 
-function ModeHologramSvg({ modeId, isSimulating }: { modeId: CognitiveModeSpec['id']; isSimulating: boolean }) {
+function ModeHologramSvg({
+  modeId,
+  isSimulating,
+  isActive,
+}: {
+  modeId: CognitiveModeSpec['id'];
+  isSimulating: boolean;
+  isActive: boolean;
+}) {
   if (modeId === 'task-anchor') {
     return (
       <motion.svg
@@ -19,7 +27,7 @@ function ModeHologramSvg({ modeId, isSimulating }: { modeId: CognitiveModeSpec['
         animate={{ opacity: 1, scale: isSimulating ? 1.06 : 1 }}
         exit={{ opacity: 0, scale: 0.96 }}
         transition={{ duration: 0.2, ease: 'easeOut' }}
-        className="w-full h-64 drop-shadow-[0_0_25px_rgba(245,184,46,0.55)]"
+        className="w-full h-64"
         viewBox="0 0 400 320"
         fill="none"
         aria-hidden="true"
@@ -51,8 +59,8 @@ function ModeHologramSvg({ modeId, isSimulating }: { modeId: CognitiveModeSpec['
             fill="#00e5ff"
             stroke="#fff"
             strokeWidth="1"
-            animate={{ scale: [1, 1.3, 1] }}
-            transition={{ duration: 2, repeat: Infinity }}
+            animate={isActive ? { scale: [1, 1.3, 1] } : { scale: 1 }}
+            transition={isActive ? { duration: 2, repeat: Infinity } : { duration: 0.2 }}
           />
           <motion.path
             d="M110 160 L140 160 L140 210 L190 210"
@@ -79,8 +87,8 @@ function ModeHologramSvg({ modeId, isSimulating }: { modeId: CognitiveModeSpec['
             cy="150"
             r="6"
             fill="#ffd159"
-            animate={{ scale: [1, 1.8, 1], opacity: [1, 0.35, 1] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
+            animate={isActive ? { scale: [1, 1.8, 1], opacity: [1, 0.35, 1] } : { scale: 1, opacity: 1 }}
+            transition={isActive ? { duration: 1.5, repeat: Infinity } : { duration: 0.2 }}
           />
         </g>
 
@@ -93,8 +101,8 @@ function ModeHologramSvg({ modeId, isSimulating }: { modeId: CognitiveModeSpec['
           stroke="#ffe082"
           strokeWidth="3"
           strokeDasharray="6 4"
-          animate={{ opacity: [0.35, 0.85, 0.35] }}
-          transition={{ duration: 2.2, repeat: Infinity }}
+          animate={isActive ? { opacity: [0.35, 0.85, 0.35] } : { opacity: 0.6 }}
+          transition={isActive ? { duration: 2.2, repeat: Infinity } : { duration: 0.2 }}
         />
 
         {/* Right Rainbow Swirl Hemisphere */}
@@ -131,24 +139,24 @@ function ModeHologramSvg({ modeId, isSimulating }: { modeId: CognitiveModeSpec['
             cy="110"
             r="6"
             fill="#f97316"
-            animate={{ scale: [1, 1.25, 1] }}
-            transition={{ duration: 1.8, repeat: Infinity, delay: 0.2 }}
+            animate={isActive ? { scale: [1, 1.25, 1] } : { scale: 1 }}
+            transition={isActive ? { duration: 1.8, repeat: Infinity, delay: 0.2 } : { duration: 0.2 }}
           />
           <motion.circle
             cx="310"
             cy="170"
             r="7"
             fill="#10b981"
-            animate={{ scale: [1, 1.25, 1] }}
-            transition={{ duration: 2.1, repeat: Infinity, delay: 0.5 }}
+            animate={isActive ? { scale: [1, 1.25, 1] } : { scale: 1 }}
+            transition={isActive ? { duration: 2.1, repeat: Infinity, delay: 0.5 } : { duration: 0.2 }}
           />
           <motion.circle
             cx="270"
             cy="250"
             r="5"
             fill="#ec4899"
-            animate={{ scale: [1, 1.35, 1] }}
-            transition={{ duration: 1.6, repeat: Infinity, delay: 0.8 }}
+            animate={isActive ? { scale: [1, 1.35, 1] } : { scale: 1 }}
+            transition={isActive ? { duration: 1.6, repeat: Infinity, delay: 0.8 } : { duration: 0.2 }}
           />
         </g>
       </motion.svg>
@@ -163,7 +171,7 @@ function ModeHologramSvg({ modeId, isSimulating }: { modeId: CognitiveModeSpec['
         animate={{ opacity: 1, scale: isSimulating ? 1.06 : 1 }}
         exit={{ opacity: 0, scale: 0.96 }}
         transition={{ duration: 0.2, ease: 'easeOut' }}
-        className="w-full h-64 drop-shadow-[0_0_25px_rgba(147,51,234,0.65)]"
+        className="w-full h-64"
         viewBox="0 0 400 320"
         fill="none"
         aria-hidden="true"
@@ -177,8 +185,12 @@ function ModeHologramSvg({ modeId, isSimulating }: { modeId: CognitiveModeSpec['
             strokeWidth="3.5"
             strokeDasharray="10 6"
             style={{ transformOrigin: '0px 0px' }}
-            animate={{ rotate: 360 }}
-            transition={{ duration: isSimulating ? 4 : 18, repeat: Infinity, ease: 'linear' }}
+            animate={isActive ? { rotate: 360 } : { rotate: 0 }}
+            transition={
+              isActive
+                ? { duration: isSimulating ? 4 : 18, repeat: Infinity, ease: 'linear' }
+                : { duration: 0.2 }
+            }
           />
           <motion.circle
             cx="0"
@@ -188,16 +200,20 @@ function ModeHologramSvg({ modeId, isSimulating }: { modeId: CognitiveModeSpec['
             strokeWidth="2.5"
             strokeDasharray="6 4"
             style={{ transformOrigin: '0px 0px' }}
-            animate={{ rotate: -360 }}
-            transition={{ duration: isSimulating ? 3 : 12, repeat: Infinity, ease: 'linear' }}
+            animate={isActive ? { rotate: -360 } : { rotate: 0 }}
+            transition={
+              isActive
+                ? { duration: isSimulating ? 3 : 12, repeat: Infinity, ease: 'linear' }
+                : { duration: 0.2 }
+            }
           />
           <motion.circle
             cx="0"
             cy="0"
             r="18"
             fill="#ec4899"
-            animate={{ scale: [1, 1.25, 1], opacity: [0.85, 1, 0.85] }}
-            transition={{ duration: 1.6, repeat: Infinity }}
+            animate={isActive ? { scale: [1, 1.25, 1], opacity: [0.85, 1, 0.85] } : { scale: 1, opacity: 0.95 }}
+            transition={isActive ? { duration: 1.6, repeat: Infinity } : { duration: 0.2 }}
           />
         </g>
         <line x1="200" y1="50" x2="200" y2="90" stroke="#f5b82e" strokeWidth="3" strokeLinecap="round" />
@@ -210,32 +226,32 @@ function ModeHologramSvg({ modeId, isSimulating }: { modeId: CognitiveModeSpec['
           cy="100"
           r="8"
           fill="#ffd159"
-          animate={{ y: [0, -6, 0] }}
-          transition={{ duration: 2.4, repeat: Infinity }}
+          animate={isActive ? { y: [0, -6, 0] } : { y: 0 }}
+          transition={isActive ? { duration: 2.4, repeat: Infinity } : { duration: 0.2 }}
         />
         <motion.circle
           cx="290"
           cy="100"
           r="9"
           fill="#00e5ff"
-          animate={{ y: [0, 6, 0] }}
-          transition={{ duration: 2.2, repeat: Infinity, delay: 0.3 }}
+          animate={isActive ? { y: [0, 6, 0] } : { y: 0 }}
+          transition={isActive ? { duration: 2.2, repeat: Infinity, delay: 0.3 } : { duration: 0.2 }}
         />
         <motion.circle
           cx="110"
           cy="240"
           r="7"
           fill="#f97316"
-          animate={{ y: [0, 5, 0] }}
-          transition={{ duration: 2.6, repeat: Infinity, delay: 0.6 }}
+          animate={isActive ? { y: [0, 5, 0] } : { y: 0 }}
+          transition={isActive ? { duration: 2.6, repeat: Infinity, delay: 0.6 } : { duration: 0.2 }}
         />
         <motion.circle
           cx="290"
           cy="240"
           r="8"
           fill="#10b981"
-          animate={{ y: [0, -5, 0] }}
-          transition={{ duration: 2.1, repeat: Infinity, delay: 0.9 }}
+          animate={isActive ? { y: [0, -5, 0] } : { y: 0 }}
+          transition={isActive ? { duration: 2.1, repeat: Infinity, delay: 0.9 } : { duration: 0.2 }}
         />
 
         <defs>
@@ -257,7 +273,7 @@ function ModeHologramSvg({ modeId, isSimulating }: { modeId: CognitiveModeSpec['
       animate={{ opacity: 1, scale: isSimulating ? 1.06 : 1 }}
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
-      className="w-full h-64 drop-shadow-[0_0_25px_rgba(16,185,129,0.55)]"
+      className="w-full h-64"
       viewBox="0 0 400 320"
       fill="none"
       aria-hidden="true"
@@ -287,8 +303,8 @@ function ModeHologramSvg({ modeId, isSimulating }: { modeId: CognitiveModeSpec['
         fill="#00e5ff"
         stroke="#fff"
         strokeWidth="1.5"
-        animate={{ scale: [1, 1.22, 1] }}
-        transition={{ duration: 1.8, repeat: Infinity }}
+        animate={isActive ? { scale: [1, 1.22, 1] } : { scale: 1 }}
+        transition={isActive ? { duration: 1.8, repeat: Infinity } : { duration: 0.2 }}
       />
       <motion.circle
         cx="200"
@@ -297,8 +313,8 @@ function ModeHologramSvg({ modeId, isSimulating }: { modeId: CognitiveModeSpec['
         fill="#ffd159"
         stroke="#fff"
         strokeWidth="2"
-        animate={{ scale: [1, 1.5, 1], opacity: [1, 0.55, 1] }}
-        transition={{ duration: 1.4, repeat: Infinity }}
+        animate={isActive ? { scale: [1, 1.5, 1], opacity: [1, 0.55, 1] } : { scale: 1, opacity: 1 }}
+        transition={isActive ? { duration: 1.4, repeat: Infinity } : { duration: 0.2 }}
       />
       <motion.circle
         cx="270"
@@ -307,8 +323,8 @@ function ModeHologramSvg({ modeId, isSimulating }: { modeId: CognitiveModeSpec['
         fill="#ec4899"
         stroke="#fff"
         strokeWidth="1.5"
-        animate={{ scale: [1, 1.22, 1] }}
-        transition={{ duration: 1.8, repeat: Infinity, delay: 0.6 }}
+        animate={isActive ? { scale: [1, 1.22, 1] } : { scale: 1 }}
+        transition={isActive ? { duration: 1.8, repeat: Infinity, delay: 0.6 } : { duration: 0.2 }}
       />
       <line x1="60" y1="170" x2="340" y2="170" stroke="#64748b" strokeWidth="1.5" strokeDasharray="2 4" />
     </motion.svg>
@@ -423,16 +439,13 @@ export function CoPilotModesSlide({ isActive, onSimulateProtocol }: CoPilotModes
           >
           {/* Animated Hologram Panel */}
           <div className="lg:col-span-6 flex justify-center items-center relative py-4">
-            <motion.div
+            <div
               aria-hidden="true"
-              className="absolute inset-4 rounded-full filter blur-3xl pointer-events-none"
-              animate={{
-                scale: simStage !== 'idle' ? [1, 1.25, 1] : [0.95, 1.05, 0.95],
-                opacity: simStage !== 'idle' ? [0.5, 0.9, 0.5] : [0.35, 0.55, 0.35],
-              }}
-              transition={{ duration: 3, repeat: Infinity }}
+              className={`absolute inset-0 pointer-events-none transition-opacity duration-300 ${
+                simStage !== 'idle' ? 'opacity-90' : 'opacity-60'
+              }`}
               style={{
-                background: `radial-gradient(circle, ${activeMode.accentHex}33 0%, rgba(147,51,234,0.18) 50%, transparent 75%)`,
+                background: `radial-gradient(ellipse closest-side, ${activeMode.accentHex}2c 0%, rgba(147,51,234,0.14) 55%, transparent 100%)`,
               }}
             />
 
@@ -458,6 +471,7 @@ export function CoPilotModesSlide({ isActive, onSimulateProtocol }: CoPilotModes
                   key={activeMode.id}
                   modeId={activeMode.id}
                   isSimulating={simStage !== 'idle'}
+                  isActive={isActive}
                 />
               </AnimatePresence>
             </div>

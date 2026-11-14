@@ -8,11 +8,8 @@ import { animate, motion, MotionConfig, useMotionValue, useTransform } from 'mot
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { NeuralParticleField } from './components/NeuralParticleField';
 import { FooterHud, HeaderHud } from './components/HudChrome';
+import { CyberSlideCard } from './components/CyberSlideCard';
 import { HeroSlide } from './components/slides/HeroSlide';
-import { DualHemisphereSlide } from './components/slides/DualHemisphereSlide';
-import { CoPilotModesSlide } from './components/slides/CoPilotModesSlide';
-import { BioMetricMatrixSlide } from './components/slides/BioMetricMatrixSlide';
-import { WaitlistSlide } from './components/slides/WaitlistSlide';
 import {
   clampSlideIndex,
   PAGE_SECTIONS,
@@ -27,9 +24,8 @@ const INTERACTIVE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT', 'OPTION']);
 export default function App() {
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const [audioEnabled, setAudioEnabled] = useState(true);
+  const [ambientFreqHz, setAmbientFreqHz] = useState(() => Math.round(synthAudio.getAmbientState().baseFreqHz));
   const [isWarping, setIsWarping] = useState(false);
-  const [eegBoosted, setEegBoosted] = useState(false);
-  const [isJolting, setIsJolting] = useState(false);
   const [containerWidth, setContainerWidth] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1440
   );
@@ -41,8 +37,6 @@ export default function App() {
   const animControlsRef = useRef<{ stop: () => void } | null>(null);
 
   const warpTimerRef = useRef<number | null>(null);
-  const eegTimerRef = useRef<number | null>(null);
-  const joltTimerRef = useRef<number | null>(null);
   const wheelCooldownRef = useRef(false);
 
   // Normalized [0..1] progress across the 5 horizontal slides for parallax & progress bar
@@ -112,7 +106,7 @@ export default function App() {
   const handleToggleAudio = useCallback(() => {
     setAudioEnabled((prev) => {
       const next = !prev;
-      synthAudio.enabled = next;
+      synthAudio.setEnabled(next);
       if (next) {
         synthAudio.playBeep(620, 'sine', 0.1, 0.05);
       }
@@ -120,19 +114,53 @@ export default function App() {
     });
   }, []);
 
-  const handleSimulateProtocol = useCallback(() => {
-    setIsJolting(true);
-    if (joltTimerRef.current) window.clearTimeout(joltTimerRef.current);
-    joltTimerRef.current = window.setTimeout(() => {
-      setIsJolting(false);
-    }, 360);
+  // Unlock subtle ambient hum on first user gesture and modulate smoothly across swipes
+  useEffect(() => {
+    const unlockAmbient = () => {
+      const state = synthAudio.ensureAmbientStarted();
+      setAmbientFreqHz(Math.round(state.baseFreqHz));
+    };
 
-    setEegBoosted(true);
-    if (eegTimerRef.current) window.clearTimeout(eegTimerRef.current);
-    eegTimerRef.current = window.setTimeout(() => {
-      setEegBoosted(false);
-    }, 2200);
-  }, []);
+    const onVisibilityChange = () => {
+      synthAudio.setVisibilityPaused(document.hidden);
+    };
+
+    window.addEventListener('pointerdown', unlockAmbient, { passive: true, once: true });
+    window.addEventListener('keydown', unlockAmbient, { passive: true, once: true });
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    let lastProgress = parallaxProgress.get();
+    let lastTime = performance.now();
+    let settleTimer: number | null = null;
+
+    const unsubscribe = parallaxProgress.on('change', (latest) => {
+      const now = performance.now();
+      const dtSec = Math.max(0.008, (now - lastTime) / 1000);
+      const speed = Math.abs(latest - lastProgress) / dtSec;
+      lastProgress = latest;
+      lastTime = now;
+
+      const velocityNorm = Math.min(1, speed / 2.2);
+      const state = synthAudio.modulateAmbient(latest, velocityNorm);
+      const rounded = Math.round(state.baseFreqHz);
+      setAmbientFreqHz((prev) => (prev === rounded ? prev : rounded));
+
+      if (settleTimer !== null) window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(() => {
+        const resting = synthAudio.modulateAmbient(latest, 0);
+        const restingHz = Math.round(resting.baseFreqHz);
+        setAmbientFreqHz((prev) => (prev === restingHz ? prev : restingHz));
+      }, 170);
+    });
+
+    return () => {
+      unsubscribe();
+      if (settleTimer !== null) window.clearTimeout(settleTimer);
+      window.removeEventListener('pointerdown', unlockAmbient);
+      window.removeEventListener('keydown', unlockAmbient);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [parallaxProgress]);
 
   // Keep track width synced cleanly on window / viewport resize
   useEffect(() => {
@@ -304,25 +332,17 @@ export default function App() {
           parallaxProgress={parallaxProgress}
           audioEnabled={audioEnabled}
           onToggleAudio={handleToggleAudio}
-          eegBoosted={eegBoosted}
+          eegBoosted={false}
+          ambientFreqHz={ambientFreqHz}
         />
 
         {/* Horizontal Carousel Viewport */}
-        <motion.main
+        <main
           ref={viewportRef}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={finishSwipe}
           onPointerCancel={finishSwipe}
-          animate={
-            isJolting
-              ? {
-                  x: [0, -4, 4, -3, 2, 0],
-                  y: [0, 3, -2, -2, 1, 0],
-                }
-              : { x: 0, y: 0 }
-          }
-          transition={{ duration: 0.34, ease: 'easeInOut' }}
           style={{ touchAction: 'pan-y' }}
           className="relative z-20 flex-1 w-full overflow-hidden flex items-center cursor-grab active:cursor-grabbing"
         >
@@ -333,7 +353,7 @@ export default function App() {
             whileHover={{ scale: 1.08, x: -2 }}
             whileTap={{ scale: 0.92 }}
             aria-label="Previous Slide"
-            className="hidden md:flex absolute left-4 lg:left-6 z-30 p-3 rounded-full bg-space-900/85 border border-gold-400/30 text-gold-400 hover:text-white hover:border-gold-400 hover:bg-gold-500/20 backdrop-blur-md transition-colors shadow-lg shadow-black/50 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+            className="hidden md:flex absolute left-4 lg:left-6 z-30 p-3 rounded-full bg-space-900/95 border border-gold-400/30 text-gold-400 hover:text-white hover:border-gold-400 hover:bg-gold-500/20 transition-colors shadow-lg shadow-black/50 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
           >
             <ChevronLeft className="w-6 h-6" aria-hidden="true" />
           </motion.button>
@@ -345,7 +365,7 @@ export default function App() {
             whileHover={{ scale: 1.08, x: 2 }}
             whileTap={{ scale: 0.92 }}
             aria-label="Next Slide"
-            className="hidden md:flex absolute right-4 lg:right-6 z-30 p-3 rounded-full bg-space-900/85 border border-gold-400/30 text-gold-400 hover:text-white hover:border-gold-400 hover:bg-gold-500/20 backdrop-blur-md transition-colors shadow-lg shadow-black/50 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+            className="hidden md:flex absolute right-4 lg:right-6 z-30 p-3 rounded-full bg-space-900/95 border border-gold-400/30 text-gold-400 hover:text-white hover:border-gold-400 hover:bg-gold-500/20 transition-colors shadow-lg shadow-black/50 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
           >
             <ChevronRight className="w-6 h-6" aria-hidden="true" />
           </motion.button>
@@ -361,15 +381,25 @@ export default function App() {
               onSelectSlide={(idx) => goToSlide(idx)}
               parallaxProgress={parallaxProgress}
             />
-            <DualHemisphereSlide isActive={activeSlideIndex === 1} />
-            <CoPilotModesSlide
-              isActive={activeSlideIndex === 2}
-              onSimulateProtocol={handleSimulateProtocol}
-            />
-            <BioMetricMatrixSlide isActive={activeSlideIndex === 3} />
-            <WaitlistSlide isActive={activeSlideIndex === 4} />
+            {PAGE_SECTIONS.slice(1).map((section, offsetIdx) => {
+              const idx = offsetIdx + 1;
+              return (
+                <section
+                  key={section.id}
+                  id={section.id}
+                  aria-label={`Slide ${idx + 1}: ${section.navLabel}`}
+                  className="slide-section min-w-full w-full h-full flex items-center justify-center px-5 sm:px-14 md:px-20 relative"
+                >
+                  <CyberSlideCard
+                    slideIndex={idx}
+                    totalSlides={TOTAL_SLIDES}
+                    sectionLabel={section.navLabel}
+                  />
+                </section>
+              );
+            })}
           </motion.div>
-        </motion.main>
+        </main>
 
         <FooterHud
           activeSlideIndex={activeSlideIndex}

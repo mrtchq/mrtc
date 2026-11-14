@@ -67,8 +67,8 @@ export function BioMetricMatrixSlide({ isActive }: BioMetricMatrixSlideProps) {
                   <motion.span
                     aria-hidden="true"
                     className="w-2 h-2 rounded-full bg-chroma-lime"
-                    animate={{ scale: [1, 1.5, 1], opacity: [0.6, 1, 0.6] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
+                    animate={isActive ? { scale: [1, 1.5, 1], opacity: [0.6, 1, 0.6] } : { scale: 1, opacity: 0.85 }}
+                    transition={isActive ? { duration: 1.5, repeat: Infinity } : { duration: 0.2 }}
                   />
                   <span>8 NEURO-PATHWAYS MAPPED</span>
                 </span>

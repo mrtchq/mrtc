@@ -10,6 +10,7 @@ interface HeaderHudProps {
   audioEnabled: boolean;
   onToggleAudio: () => void;
   eegBoosted: boolean;
+  ambientFreqHz: number;
 }
 
 const EEG_BARS = [
@@ -28,12 +29,13 @@ export function HeaderHud({
   audioEnabled,
   onToggleAudio,
   eegBoosted,
+  ambientFreqHz,
 }: HeaderHudProps) {
   const mappedProgress = useTransform(parallaxProgress, [0, 1], [1 / TOTAL_SLIDES, 1]);
   const smoothProgress = useSpring(mappedProgress, { stiffness: 220, damping: 28, restDelta: 0.001 });
 
   return (
-    <header className="relative z-30 shrink-0 h-16 px-4 sm:px-6 flex items-center justify-between gap-4 sm:gap-8 border-b border-gold-400/20 bg-[#080811]/90 backdrop-blur-md shadow-[0_4px_30px_rgba(0,0,0,0.65)]">
+    <header className="relative z-30 shrink-0 h-16 px-4 sm:px-6 flex items-center justify-between gap-4 sm:gap-8 border-b border-gold-400/20 bg-[#080811]/95 shadow-[0_4px_24px_rgba(0,0,0,0.65)]">
       {/* Brand / Split Logo */}
       <button
         type="button"
@@ -173,17 +175,20 @@ export function HeaderHud({
           onClick={onToggleAudio}
           whileHover={{ scale: 1.04 }}
           whileTap={{ scale: 0.94 }}
+          data-ambient-hz={audioEnabled ? ambientFreqHz : 0}
           aria-pressed={audioEnabled}
-          aria-label={audioEnabled ? 'Mute Synth Sound Effects' : 'Enable Synth Sound Effects'}
+          aria-label={audioEnabled ? 'Mute Ambient Hum and Synth Sound Effects' : 'Enable Ambient Hum and Synth Sound Effects'}
           className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-space-850/90 border border-slate-700 hover:border-gold-400 transition-colors text-xs font-rajdhani tracking-wider text-slate-300 hover:text-white whitespace-nowrap shrink-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
-          title="Toggle Synth Sound Effects"
+          title="Toggle Ambient Hum & Synth Sound Effects"
         >
           {audioEnabled ? (
             <Volume2 className="w-4 h-4 text-gold-400" aria-hidden="true" />
           ) : (
             <VolumeX className="w-4 h-4 text-slate-500" aria-hidden="true" />
           )}
-          <span className="hidden sm:inline">{audioEnabled ? 'SFX: ON' : 'SFX: OFF'}</span>
+          <span className="hidden sm:inline tabular-nums">
+            {audioEnabled ? `HUM ${ambientFreqHz}Hz` : 'SFX: OFF'}
+          </span>
         </motion.button>
       </div>
 
@@ -207,7 +212,7 @@ interface FooterHudProps {
 
 export function FooterHud({ activeSlideIndex, onSelectSlide, onPrevSlide, onNextSlide }: FooterHudProps) {
   return (
-    <footer className="relative z-30 shrink-0 px-4 sm:px-6 py-3 sm:py-3.5 border-t border-gold-400/20 bg-[#080811]/90 backdrop-blur-md flex items-center justify-between gap-3">
+    <footer className="relative z-30 shrink-0 px-4 sm:px-6 py-3 sm:py-3.5 border-t border-gold-400/20 bg-[#080811]/95 flex items-center justify-between gap-3">
       {/* Sector Coordinates & Status */}
       <div className="flex items-center space-x-3 font-rajdhani text-xs tracking-widest text-slate-400 shrink-0">
         <span data-testid="sector-display" className="gold-gradient-text font-bold font-orbitron tabular-nums whitespace-nowrap">

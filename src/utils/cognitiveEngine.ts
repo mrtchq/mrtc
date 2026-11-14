@@ -268,14 +268,18 @@ export function calculateParticlePoolBudget(width: number, height: number): {
   nodeCount: number;
   maxSparks: number;
   connectDistance: number;
+  starCount: number;
+  bokehCount: number;
 } {
   const area = Math.max(320 * 480, width * height);
-  const nodeCount = Math.max(24, Math.min(72, Math.floor(area / 19000)));
+  const nodeCount = Math.max(14, Math.min(30, Math.floor(area / 45000)));
   const isCompact = width < 768;
   return {
     nodeCount,
-    maxSparks: isCompact ? 110 : 200,
-    connectDistance: isCompact ? 105 : 135,
+    maxSparks: isCompact ? 60 : 100,
+    connectDistance: isCompact ? 95 : 120,
+    starCount: isCompact ? 80 : 140,
+    bokehCount: isCompact ? 4 : 6,
   };
 }
 
@@ -321,4 +325,34 @@ export function resolveSwipeNavigation(
   }
   return clampSlideIndex(currentIndex, total);
 }
+
+export interface AmbientHumState {
+  baseFreqHz: number;
+  harmonicFreqHz: number;
+  filterCutoffHz: number;
+  gain: number;
+}
+
+export function calculateAmbientHumState(
+  progress: number,
+  swipeVelocityNorm: number = 0
+): AmbientHumState {
+  const safeProgress = Number.isFinite(progress) ? Math.max(0, Math.min(1, progress)) : 0;
+  const safeVel = Number.isFinite(swipeVelocityNorm) ? Math.max(0, Math.min(1, swipeVelocityNorm)) : 0;
+
+  // Smoothly glides from C2 (65.41 Hz) on Slide 01 up to G2 (98.00 Hz) on Slide 05,
+  // with subtle upward pitch bend during active horizontal swiping.
+  const baseFreqHz = 65.41 + safeProgress * (98.0 - 65.41) + safeVel * 14;
+  const harmonicFreqHz = baseFreqHz * 1.5 + safeVel * 6;
+  const filterCutoffHz = 190 + safeProgress * 90 + safeVel * 320;
+  const gain = 0.022 + safeVel * 0.026;
+
+  return {
+    baseFreqHz: Number(baseFreqHz.toFixed(2)),
+    harmonicFreqHz: Number(harmonicFreqHz.toFixed(2)),
+    filterCutoffHz: Number(filterCutoffHz.toFixed(1)),
+    gain: Number(gain.toFixed(4)),
+  };
+}
+
 

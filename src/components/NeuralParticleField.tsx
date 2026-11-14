@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { motion, useMotionValue, useSpring, useTransform, type MotionValue } from 'motion/react';
+import React, { useEffect, useRef } from 'react';
+import { motion, type MotionValue } from 'motion/react';
 import { calculateParticlePoolBudget } from '../utils/cognitiveEngine';
 
 interface BrandColor {
@@ -17,6 +17,32 @@ const BRAND_COLORS: BrandColor[] = [
   { r: 16, g: 185, b: 129, hex: '#10b981' },
   { r: 249, g: 115, b: 22, hex: '#f97316' },
 ];
+
+const STAR_PALETTES: string[][] = [
+  ['#ffffff', '#fff9c4', '#ffd54f'],
+  ['#ffffff', '#ffd159', '#00e5ff', '#ec4899'],
+  ['#ffd159', '#9333ea', '#ec4899', '#00e5ff', '#10b981'],
+];
+
+interface StarParticle {
+  x: number;
+  y: number;
+  depth: 0 | 1 | 2;
+  size: number;
+  speedY: number;
+  color: string;
+  alpha: number;
+}
+
+interface BokehOrb {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  phase: number;
+  color: BrandColor;
+}
 
 interface SynapticNode {
   x: number;
@@ -57,15 +83,37 @@ interface CanvasSpark {
   color: BrandColor;
 }
 
-function generateBoxShadowStars(n: number, maxCoord: number, palette: string[]): string {
-  const shadows: string[] = [];
-  for (let i = 0; i < n; i++) {
-    const x = Math.floor(Math.random() * maxCoord);
-    const y = Math.floor(Math.random() * maxCoord);
-    const color = palette[Math.floor(Math.random() * palette.length)];
-    shadows.push(`${x}px ${y}px ${color}`);
+function createGlowSprite(color: BrandColor): HTMLCanvasElement {
+  const sprite = document.createElement('canvas');
+  sprite.width = 32;
+  sprite.height = 32;
+  const sctx = sprite.getContext('2d');
+  if (sctx) {
+    const grad = sctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    grad.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, 0.92)`);
+    grad.addColorStop(0.35, `rgba(${color.r}, ${color.g}, ${color.b}, 0.38)`);
+    grad.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0)`);
+    sctx.fillStyle = grad;
+    sctx.fillRect(0, 0, 32, 32);
   }
-  return shadows.join(', ');
+  return sprite;
+}
+
+function createCursorAuraSprite(): HTMLCanvasElement {
+  const sprite = document.createElement('canvas');
+  sprite.width = 192;
+  sprite.height = 192;
+  const sctx = sprite.getContext('2d');
+  if (sctx) {
+    const grad = sctx.createRadialGradient(96, 96, 0, 96, 96, 96);
+    grad.addColorStop(0, 'rgba(245, 184, 46, 0.18)');
+    grad.addColorStop(0.38, 'rgba(236, 72, 153, 0.1)');
+    grad.addColorStop(0.7, 'rgba(0, 229, 255, 0.05)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    sctx.fillStyle = grad;
+    sctx.fillRect(0, 0, 192, 192);
+  }
+  return sprite;
 }
 
 export function dispatchParticleBurst(x: number, y: number, count = 24, colorHex?: string) {
@@ -81,43 +129,16 @@ interface NeuralParticleFieldProps {
   parallaxProgress: MotionValue<number>;
 }
 
-const BOKEH_EMBERS = [
-  { left: '12%', top: '40%', size: 'w-3 h-3', color: '#ffd159', delay: 0, dx: 12, dy: -45 },
-  { left: '32%', top: '65%', size: 'w-2 h-2', color: '#00e5ff', delay: 1.5, dx: -15, dy: -55 },
-  { left: '78%', top: '25%', size: 'w-3.5 h-3.5', color: '#ec4899', delay: 0.8, dx: 18, dy: -50 },
-  { left: '88%', top: '60%', size: 'w-2.5 h-2.5', color: '#9333ea', delay: 2.2, dx: -14, dy: -40 },
-  { left: '68%', top: '75%', size: 'w-2 h-2', color: '#10b981', delay: 3.1, dx: 10, dy: -60 },
-  { left: '62%', top: '38%', size: 'w-3 h-3', color: '#f97316', delay: 1.2, dx: -12, dy: -48 },
-  { left: '22%', top: '22%', size: 'w-2.5 h-2.5', color: '#ffd159', delay: 2.7, dx: 14, dy: -38 },
-];
-
 export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParticleFieldProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const warpTargetRef = useRef(1);
 
-  const starParallaxSlowX = useTransform(parallaxProgress, [0, 1], [0, -110]);
-  const starParallaxMidX = useTransform(parallaxProgress, [0, 1], [0, -210]);
-  const nebulaParallaxX = useTransform(parallaxProgress, [0, 1], [0, -150]);
-  const horizonParallaxX = useTransform(parallaxProgress, [0, 1], [0, 85]);
-
-  const cursorX = useMotionValue(-400);
-  const cursorY = useMotionValue(-400);
-  const smoothCursorX = useSpring(cursorX, { stiffness: 180, damping: 24, mass: 0.6 });
-  const smoothCursorY = useSpring(cursorY, { stiffness: 180, damping: 24, mass: 0.6 });
-
-  const starVars = useMemo(() => {
-    const sm = generateBoxShadowStars(560, 2800, ['#ffffff', '#fff9c4', '#ffd54f']);
-    const md = generateBoxShadowStars(180, 2800, ['#ffffff', '#ffd159', '#00e5ff', '#ec4899']);
-    const lg = generateBoxShadowStars(80, 2800, ['#ffd159', '#f5b82e', '#9333ea', '#ec4899', '#00e5ff', '#10b981']);
-    return { sm, md, lg };
-  }, []);
-
   useEffect(() => {
     if (isWarping) {
-      warpTargetRef.current = 15;
+      warpTargetRef.current = 12;
       const timer = window.setTimeout(() => {
         warpTargetRef.current = 1;
-      }, 420);
+      }, 380);
       return () => window.clearTimeout(timer);
     }
   }, [isWarping]);
@@ -130,15 +151,61 @@ export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParti
 
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+    // Pre-render tiny glow textures once to avoid per-frame shadowBlur / multi-arc passes
+    const glowSprites = new Map<string, HTMLCanvasElement>();
+    for (const color of BRAND_COLORS) {
+      glowSprites.set(color.hex, createGlowSprite(color));
+    }
+    const cursorAuraSprite = createCursorAuraSprite();
+
     let width = window.innerWidth;
     let height = window.innerHeight;
     let budget = calculateParticlePoolBudget(width, height);
     let nodes: SynapticNode[] = [];
+    let stars: StarParticle[] = [];
+    let bokehOrbs: BokehOrb[] = [];
+
+    const buildPools = () => {
+      stars = Array.from({ length: budget.starCount }, (_, idx) => {
+        const depth = (idx % 3) as 0 | 1 | 2;
+        const palette = STAR_PALETTES[depth];
+        return {
+          x: Math.random() * width,
+          y: Math.random() * height,
+          depth,
+          size: depth === 0 ? 1.1 : depth === 1 ? 1.7 : 2.3,
+          speedY: depth === 0 ? 0.14 : depth === 1 ? 0.26 : 0.42,
+          color: palette[Math.floor(Math.random() * palette.length)],
+          alpha: depth === 0 ? 0.45 + Math.random() * 0.3 : depth === 1 ? 0.65 + Math.random() * 0.25 : 0.8 + Math.random() * 0.2,
+        };
+      });
+
+      bokehOrbs = Array.from({ length: budget.bokehCount }, (_, idx) => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.16,
+        vy: -0.12 - Math.random() * 0.18,
+        radius: 14 + (idx % 3) * 8,
+        phase: Math.random() * Math.PI * 2,
+        color: BRAND_COLORS[idx % BRAND_COLORS.length],
+      }));
+
+      nodes = Array.from({ length: budget.nodeCount }, () => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.55,
+        vy: (Math.random() - 0.5) * 0.55,
+        radius: Math.random() * 1.6 + 1.1,
+        color: BRAND_COLORS[Math.floor(Math.random() * BRAND_COLORS.length)],
+        phase: Math.random() * Math.PI * 2,
+        pulseSpeed: 0.02 + Math.random() * 0.025,
+      }));
+    };
 
     const resize = () => {
       const prevWidth = width || window.innerWidth;
       const prevHeight = height || window.innerHeight;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
       width = window.innerWidth;
       height = window.innerHeight;
       canvas.width = Math.floor(width * dpr);
@@ -148,86 +215,91 @@ export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParti
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       budget = calculateParticlePoolBudget(width, height);
 
-      if (nodes.length > 0 && prevWidth > 0 && prevHeight > 0) {
+      if (nodes.length === 0) {
+        buildPools();
+      } else if (prevWidth > 0 && prevHeight > 0) {
         const scaleX = width / prevWidth;
         const scaleY = height / prevHeight;
         for (let i = 0; i < nodes.length; i++) {
           nodes[i].x = Math.min(width, Math.max(0, nodes[i].x * scaleX));
           nodes[i].y = Math.min(height, Math.max(0, nodes[i].y * scaleY));
         }
+        for (let i = 0; i < stars.length; i++) {
+          stars[i].x = Math.min(width, Math.max(0, stars[i].x * scaleX));
+          stars[i].y = Math.min(height, Math.max(0, stars[i].y * scaleY));
+        }
+        for (let i = 0; i < bokehOrbs.length; i++) {
+          bokehOrbs[i].x = Math.min(width, Math.max(0, bokehOrbs[i].x * scaleX));
+          bokehOrbs[i].y = Math.min(height, Math.max(0, bokehOrbs[i].y * scaleY));
+        }
       }
     };
     resize();
-
-    nodes = Array.from({ length: budget.nodeCount }, () => ({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      vx: (Math.random() - 0.5) * 0.72,
-      vy: (Math.random() - 0.5) * 0.72,
-      radius: Math.random() * 2 + 1.2,
-      color: BRAND_COLORS[Math.floor(Math.random() * BRAND_COLORS.length)],
-      phase: Math.random() * Math.PI * 2,
-      pulseSpeed: 0.02 + Math.random() * 0.03,
-    }));
 
     const actionPotentials: ActionPotential[] = [];
     const ripples: ShockwaveRipple[] = [];
     const sparks: CanvasSpark[] = [];
 
-    const mouse = { x: -1000, y: -1000, active: false };
+    const mouse = { x: -1000, y: -1000, smoothX: -1000, smoothY: -1000, active: false };
     let warpMultiplier = 1;
     let lastTrailTime = 0;
+    let lastFrameTime = performance.now();
 
     const spawnBurst = (x: number, y: number, count: number, colorHex?: string) => {
       const matchedColor = colorHex ? BRAND_COLORS.find((c) => c.hex === colorHex) : undefined;
-      for (let i = 0; i < count; i++) {
+      const clampedCount = Math.min(count, 24);
+      for (let i = 0; i < clampedCount; i++) {
         if (sparks.length >= budget.maxSparks) {
           sparks.shift();
         }
         const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 4.5 + 1.4;
+        const speed = Math.random() * 4.2 + 1.4;
         sparks.push({
           x,
           y,
           vx: Math.cos(angle) * speed,
           vy: Math.sin(angle) * speed,
-          size: Math.random() * 2.8 + 1.6,
+          size: Math.random() * 2.4 + 1.6,
           life: 1,
-          decay: 0.022 + Math.random() * 0.018,
+          decay: 0.025 + Math.random() * 0.02,
           color: matchedColor ?? BRAND_COLORS[Math.floor(Math.random() * BRAND_COLORS.length)],
         });
       }
-      ripples.push({
-        x,
-        y,
-        radius: 6,
-        maxRadius: 210,
-        opacity: 0.78,
-        color: matchedColor ?? BRAND_COLORS[Math.floor(Math.random() * BRAND_COLORS.length)],
-      });
+      if (ripples.length < 6) {
+        ripples.push({
+          x,
+          y,
+          radius: 8,
+          maxRadius: 190,
+          opacity: 0.72,
+          color: matchedColor ?? BRAND_COLORS[Math.floor(Math.random() * BRAND_COLORS.length)],
+        });
+      }
     };
 
     const onMouseMove = (e: MouseEvent) => {
+      if (!mouse.active) {
+        mouse.smoothX = e.clientX;
+        mouse.smoothY = e.clientY;
+      }
       mouse.x = e.clientX;
       mouse.y = e.clientY;
       mouse.active = true;
-      cursorX.set(e.clientX - 160);
-      cursorY.set(e.clientY - 160);
 
       if (prefersReducedMotion) return;
       const now = performance.now();
-      if (now - lastTrailTime > 55 && sparks.length < budget.maxSparks) {
+      if (now - lastTrailTime > 75 && sparks.length < budget.maxSparks) {
         lastTrailTime = now;
         const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 1.3 + 0.4;
+        const speed = Math.random() * 1.1 + 0.35;
         sparks.push({
           x: e.clientX,
           y: e.clientY,
           vx: Math.cos(angle) * speed,
           vy: Math.sin(angle) * speed,
-          size: Math.random() * 2.2 + 1.2,
-          life: 0.85,
-          decay: 0.032,
+          size: Math.random() * 1.8 + 1.2,
+          life: 0.8,
+          decay: 0.036,
           color: BRAND_COLORS[Math.floor(Math.random() * BRAND_COLORS.length)],
         });
       }
@@ -239,40 +311,95 @@ export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParti
 
     const onClick = (e: MouseEvent) => {
       if (prefersReducedMotion) return;
-      spawnBurst(e.clientX, e.clientY, 16);
+      spawnBurst(e.clientX, e.clientY, 14);
     };
 
     const onCustomBurst = (e: Event) => {
       if (prefersReducedMotion) return;
       const detail = (e as CustomEvent<{ x: number; y: number; count?: number; colorHex?: string }>).detail;
       if (detail) {
-        spawnBurst(detail.x, detail.y, detail.count ?? 24, detail.colorHex);
+        spawnBurst(detail.x, detail.y, detail.count ?? 20, detail.colorHex);
       }
     };
 
-    window.addEventListener('resize', resize);
-    window.addEventListener('mousemove', onMouseMove, { passive: true });
-    window.addEventListener('mouseleave', onMouseLeave);
-    window.addEventListener('click', onClick, { passive: true });
-    window.addEventListener('mrtc:burst', onCustomBurst);
-
     let rafId = 0;
+    let isPaused = document.hidden;
 
-    const renderFrame = () => {
+    const renderFrame = (now: number) => {
+      // Normalized delta (1 = 60fps ~ 16.67ms), clamped so tab switches never jump
+      const dtScale = Math.min(2.2, Math.max(0.4, (now - lastFrameTime) / 16.67));
+      lastFrameTime = now;
+
       ctx.clearRect(0, 0, width, height);
 
+      const progress = parallaxProgress.get();
+
       if (!prefersReducedMotion) {
-        warpMultiplier += (warpTargetRef.current - warpMultiplier) * 0.085;
+        warpMultiplier += (warpTargetRef.current - warpMultiplier) * 0.1 * dtScale;
         if (Math.abs(warpMultiplier - 1) < 0.04 && warpTargetRef.current === 1) {
           warpMultiplier = 1;
         }
       }
 
-      // 1. Shockwave Ripples
+      // 1. Multi-depth Parallax Starfield
+      const depthSpans = [70, 145, 230];
+      for (let i = 0; i < stars.length; i++) {
+        const s = stars[i];
+        if (!prefersReducedMotion) {
+          s.y -= s.speedY * warpMultiplier * dtScale;
+          if (s.y < -8) {
+            s.y = height + 4;
+            s.x = Math.random() * width;
+          }
+        }
+        const shiftedX = s.x - progress * depthSpans[s.depth];
+        const drawX = ((shiftedX % width) + width) % width;
+        ctx.globalAlpha = s.alpha;
+        ctx.fillStyle = s.color;
+        if (warpMultiplier > 2.2) {
+          const streakLen = s.size + warpMultiplier * (s.depth + 1) * 0.85;
+          ctx.fillRect(drawX, s.y, s.size, streakLen);
+        } else {
+          ctx.fillRect(drawX, s.y, s.size, s.size);
+        }
+      }
+      ctx.globalAlpha = 1;
+
+      // 2. Soft Drifting Bokeh Embers (cached glow sprites)
+      for (let b = 0; b < bokehOrbs.length; b++) {
+        const orb = bokehOrbs[b];
+        if (!prefersReducedMotion) {
+          orb.x += orb.vx * dtScale;
+          orb.y += orb.vy * dtScale;
+          orb.phase += 0.015 * dtScale;
+          if (orb.y < -orb.radius * 2) {
+            orb.y = height + orb.radius * 2;
+            orb.x = Math.random() * width;
+          }
+          if (orb.x < -orb.radius * 2) orb.x = width + orb.radius * 2;
+          if (orb.x > width + orb.radius * 2) orb.x = -orb.radius * 2;
+        }
+        const sprite = glowSprites.get(orb.color.hex);
+        if (sprite) {
+          const orbX = ((orb.x - progress * 90) % width + width) % width;
+          ctx.globalAlpha = 0.24 + Math.sin(orb.phase) * 0.1;
+          ctx.drawImage(sprite, orbX - orb.radius, orb.y - orb.radius, orb.radius * 2, orb.radius * 2);
+        }
+      }
+      ctx.globalAlpha = 1;
+
+      // 3. Smoothed Cursor Radial Aura (canvas-drawn, zero DOM blur)
+      if (mouse.active && width >= 640) {
+        mouse.smoothX += (mouse.x - mouse.smoothX) * 0.22;
+        mouse.smoothY += (mouse.y - mouse.smoothY) * 0.22;
+        ctx.drawImage(cursorAuraSprite, mouse.smoothX - 96, mouse.smoothY - 96, 192, 192);
+      }
+
+      // 4. Shockwave Ripples
       for (let r = ripples.length - 1; r >= 0; r--) {
         const rip = ripples[r];
-        rip.radius += 5.5;
-        rip.opacity -= 0.022;
+        rip.radius += 5.5 * dtScale;
+        rip.opacity -= 0.025 * dtScale;
         if (rip.opacity <= 0 || rip.radius >= rip.maxRadius) {
           ripples.splice(r, 1);
           continue;
@@ -280,22 +407,23 @@ export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParti
         ctx.beginPath();
         ctx.arc(rip.x, rip.y, rip.radius, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(${rip.color.r}, ${rip.color.g}, ${rip.color.b}, ${rip.opacity})`;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1.8;
         ctx.stroke();
       }
 
-      // 2. Synaptic Nodes & Filaments
+      // 5. Synaptic Nodes & Filaments
       const connectDist = budget.connectDistance;
       const connectDistSq = connectDist * connectDist;
-      const mouseDist = 180;
+      const mouseDist = 170;
       const mouseDistSq = mouseDist * mouseDist;
 
+      ctx.lineWidth = 0.85;
       for (let i = 0; i < nodes.length; i++) {
         const p = nodes[i];
         if (!prefersReducedMotion) {
-          p.x += p.vx * warpMultiplier;
-          p.y += p.vy * warpMultiplier;
-          p.phase += p.pulseSpeed;
+          p.x += p.vx * warpMultiplier * dtScale;
+          p.y += p.vy * warpMultiplier * dtScale;
+          p.phase += p.pulseSpeed * dtScale;
         }
 
         if (p.x < 0) {
@@ -319,14 +447,13 @@ export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParti
           const mDistSq = mdx * mdx + mdy * mdy;
           if (mDistSq < mouseDistSq && mDistSq > 1) {
             const mDist = Math.sqrt(mDistSq);
-            p.x += (mdx / mDist) * 0.42;
-            p.y += (mdy / mDist) * 0.42;
-            const alpha = (1 - mDist / mouseDist) * 0.72;
+            p.x += (mdx / mDist) * 0.35 * dtScale;
+            p.y += (mdy / mDist) * 0.35 * dtScale;
+            const alpha = (1 - mDist / mouseDist) * 0.65;
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(mouse.x, mouse.y);
             ctx.strokeStyle = `rgba(${p.color.r}, ${p.color.g}, ${p.color.b}, ${alpha})`;
-            ctx.lineWidth = 1.1;
             ctx.stroke();
           }
         }
@@ -338,15 +465,14 @@ export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParti
           const distSq = dx * dx + dy * dy;
           if (distSq < connectDistSq) {
             const dist = Math.sqrt(distSq);
-            const alpha = (1 - dist / connectDist) * 0.34;
+            const alpha = (1 - dist / connectDist) * 0.32;
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(p2.x, p2.y);
             ctx.strokeStyle = `rgba(${p.color.r}, ${p.color.g}, ${p.color.b}, ${alpha})`;
-            ctx.lineWidth = 0.85;
             ctx.stroke();
 
-            if (!prefersReducedMotion && Math.random() < 0.0025 && actionPotentials.length < 16) {
+            if (!prefersReducedMotion && Math.random() < 0.0022 && actionPotentials.length < 8) {
               actionPotentials.push({
                 from: p,
                 to: p2,
@@ -358,199 +484,153 @@ export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParti
           }
         }
 
-        const pulse = 1 + Math.sin(p.phase) * 0.28;
+        const pulse = 1 + Math.sin(p.phase) * 0.24;
         const currentRadius = p.radius * pulse;
 
-        if (warpMultiplier > 3) {
+        if (warpMultiplier > 2.8) {
           ctx.beginPath();
           ctx.moveTo(p.x, p.y);
-          ctx.lineTo(p.x - p.vx * warpMultiplier * 3.2, p.y - p.vy * warpMultiplier * 3.2);
+          ctx.lineTo(p.x - p.vx * warpMultiplier * 2.8, p.y - p.vy * warpMultiplier * 2.8);
           ctx.strokeStyle = p.color.hex;
-          ctx.lineWidth = currentRadius * 1.4;
+          ctx.lineWidth = currentRadius * 1.25;
           ctx.stroke();
+          ctx.lineWidth = 0.85;
         } else {
-          // Soft outer halo + bright core without expensive shadowBlur
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, currentRadius * 2.2, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${p.color.r}, ${p.color.g}, ${p.color.b}, 0.16)`;
-          ctx.fill();
-
+          const sprite = glowSprites.get(p.color.hex);
+          if (sprite) {
+            const haloSize = currentRadius * 4.5;
+            ctx.globalAlpha = 0.48;
+            ctx.drawImage(sprite, p.x - haloSize, p.y - haloSize, haloSize * 2, haloSize * 2);
+            ctx.globalAlpha = 1;
+          }
+          ctx.fillStyle = p.color.hex;
           ctx.beginPath();
           ctx.arc(p.x, p.y, currentRadius, 0, Math.PI * 2);
-          ctx.fillStyle = p.color.hex;
           ctx.fill();
         }
       }
 
-      // 3. Action Potential Photon Pulses
+      // 6. Action Potential Photon Pulses
       for (let a = actionPotentials.length - 1; a >= 0; a--) {
         const ap = actionPotentials[a];
-        ap.progress += ap.speed;
+        ap.progress += ap.speed * dtScale;
         if (ap.progress >= 1) {
           actionPotentials.splice(a, 1);
           continue;
         }
         const curX = ap.from.x + (ap.to.x - ap.from.x) * ap.progress;
         const curY = ap.from.y + (ap.to.y - ap.from.y) * ap.progress;
-
-        ctx.beginPath();
-        ctx.arc(curX, curY, 4.5, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${ap.color.r}, ${ap.color.g}, ${ap.color.b}, 0.35)`;
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(curX, curY, 2.2, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.fill();
-      }
-
-      // 4. Pooled Canvas Particle Sparks (Additive glow, zero DOM churn)
-      if (sparks.length > 0) {
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        for (let s = sparks.length - 1; s >= 0; s--) {
-          const sp = sparks[s];
-          sp.x += sp.vx;
-          sp.y += sp.vy;
-          sp.vx *= 0.96;
-          sp.vy *= 0.96;
-          sp.life -= sp.decay;
-
-          if (sp.life <= 0) {
-            sparks.splice(s, 1);
-            continue;
-          }
-
-          ctx.beginPath();
-          ctx.arc(sp.x, sp.y, sp.size * sp.life * 2.1, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${sp.color.r}, ${sp.color.g}, ${sp.color.b}, ${sp.life * 0.28})`;
-          ctx.fill();
-
-          ctx.beginPath();
-          ctx.arc(sp.x, sp.y, sp.size * sp.life, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${sp.color.r}, ${sp.color.g}, ${sp.color.b}, ${sp.life})`;
-          ctx.fill();
+        const sprite = glowSprites.get(ap.color.hex);
+        if (sprite) {
+          ctx.drawImage(sprite, curX - 7, curY - 7, 14, 14);
         }
-        ctx.restore();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(curX - 1.25, curY - 1.25, 2.5, 2.5);
       }
 
-      rafId = requestAnimationFrame(renderFrame);
+      // 7. Pooled Canvas Particle Sparks (cached radial sprites, zero save/restore or globalCompositeOperation churn)
+      for (let s = sparks.length - 1; s >= 0; s--) {
+        const sp = sparks[s];
+        sp.x += sp.vx * dtScale;
+        sp.y += sp.vy * dtScale;
+        sp.vx *= 0.96;
+        sp.vy *= 0.96;
+        sp.life -= sp.decay * dtScale;
+
+        if (sp.life <= 0) {
+          sparks.splice(s, 1);
+          continue;
+        }
+
+        const sprite = glowSprites.get(sp.color.hex);
+        const radius = Math.max(2, sp.size * sp.life * 3.2);
+        if (sprite) {
+          ctx.globalAlpha = sp.life;
+          ctx.drawImage(sprite, sp.x - radius, sp.y - radius, radius * 2, radius * 2);
+        }
+      }
+      ctx.globalAlpha = 1;
+
+      if (!prefersReducedMotion && !isPaused) {
+        rafId = requestAnimationFrame(renderFrame);
+      }
     };
 
-    rafId = requestAnimationFrame(renderFrame);
+    const startLoop = () => {
+      if (prefersReducedMotion) {
+        renderFrame(performance.now());
+        return;
+      }
+      if (!isPaused && rafId === 0) {
+        lastFrameTime = performance.now();
+        rafId = requestAnimationFrame(renderFrame);
+      }
+    };
+
+    const stopLoop = () => {
+      if (rafId !== 0) {
+        cancelAnimationFrame(rafId);
+        rafId = 0;
+      }
+    };
+
+    const onVisibilityChange = () => {
+      isPaused = document.hidden;
+      if (isPaused) {
+        stopLoop();
+      } else {
+        startLoop();
+      }
+    };
+
+    const unsubscribeProgress = prefersReducedMotion
+      ? parallaxProgress.on('change', () => renderFrame(performance.now()))
+      : undefined;
+
+    window.addEventListener('resize', resize, { passive: true });
+    window.addEventListener('mousemove', onMouseMove, { passive: true });
+    window.addEventListener('mouseleave', onMouseLeave);
+    window.addEventListener('click', onClick, { passive: true });
+    window.addEventListener('mrtc:burst', onCustomBurst);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    startLoop();
 
     return () => {
-      cancelAnimationFrame(rafId);
+      stopLoop();
+      unsubscribeProgress?.();
       window.removeEventListener('resize', resize);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseleave', onMouseLeave);
       window.removeEventListener('click', onClick);
       window.removeEventListener('mrtc:burst', onCustomBurst);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [cursorX, cursorY]);
+  }, [parallaxProgress]);
 
   return (
     <>
-      {/* Cursor Radial Aura driven by Framer Motion springs */}
-      <motion.div
-        aria-hidden="true"
-        className="pointer-events-none fixed top-0 left-0 w-80 h-80 rounded-full opacity-60 mix-blend-screen z-40 hidden sm:block will-change-transform"
-        style={{
-          x: smoothCursorX,
-          y: smoothCursorY,
-          background:
-            'radial-gradient(circle, rgba(245, 184, 46, 0.28) 0%, rgba(236, 72, 153, 0.16) 35%, rgba(0, 229, 255, 0.1) 65%, transparent 80%)',
-          filter: 'blur(30px)',
-        }}
-      />
-
       {/* Warp Speed Flash Overlay */}
       <motion.div
         aria-hidden="true"
         className="fixed inset-0 pointer-events-none z-30"
         initial={false}
-        animate={{ opacity: isWarping ? 0.65 : 0 }}
-        transition={{ duration: isWarping ? 0.14 : 0.45, ease: 'easeOut' }}
+        animate={{ opacity: isWarping ? 0.5 : 0 }}
+        transition={{ duration: isWarping ? 0.14 : 0.4, ease: 'easeOut' }}
         style={{
           background:
-            'radial-gradient(circle, rgba(255, 209, 89, 0.36) 0%, rgba(236, 72, 153, 0.22) 38%, rgba(0, 229, 255, 0.14) 68%, transparent 100%)',
+            'radial-gradient(circle, rgba(255, 209, 89, 0.32) 0%, rgba(236, 72, 153, 0.18) 40%, rgba(0, 229, 255, 0.12) 70%, transparent 100%)',
         }}
       />
 
-      {/* Ambient Space, Dual-Nebula, Starfield & Neural Canvas */}
-      <div
-        data-testid="parallax-bg"
-        className={`fixed inset-0 overflow-hidden pointer-events-none z-0 ${isWarping ? 'warp-speed' : ''}`}
-      >
-        <motion.div className="absolute inset-0 will-change-transform" style={{ x: starParallaxSlowX }}>
-          <div
-            className="star-layer-1"
-            style={
-              {
-                boxShadow: starVars.sm,
-                '--stars-sm': starVars.sm,
-              } as React.CSSProperties
-            }
-          />
-        </motion.div>
-
-        <motion.div className="absolute inset-0 will-change-transform" style={{ x: starParallaxMidX }}>
-          <div
-            className="star-layer-2"
-            style={
-              {
-                boxShadow: starVars.md,
-                '--stars-md': starVars.md,
-              } as React.CSSProperties
-            }
-          />
-          <div
-            className="star-layer-3"
-            style={
-              {
-                boxShadow: starVars.lg,
-                '--stars-lg': starVars.lg,
-              } as React.CSSProperties
-            }
-          />
-        </motion.div>
-
-        <motion.div className="nebula-glow will-change-transform" style={{ x: nebulaParallaxX }} />
-        <div className="circuit-grid absolute inset-0 opacity-40" />
-        <motion.div className="absolute inset-0 will-change-transform" style={{ x: horizonParallaxX }}>
-          <div className="perspective-grid" />
-          <div className="horizon-light-beam" />
-        </motion.div>
+      {/* Lightweight Static Space Backdrop + Single High-FPS Interactive Canvas */}
+      <div data-testid="parallax-bg" className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="nebula-glow" />
+        <div className="circuit-grid absolute inset-0 opacity-35" />
+        <div className="perspective-grid" />
+        <div className="horizon-light-beam" />
         <div className="hud-scanlines" />
 
-        {/* Framer Motion GPU-composited Floating Bokeh Embers */}
-        {BOKEH_EMBERS.map((ember, idx) => (
-          <motion.div
-            key={idx}
-            aria-hidden="true"
-            className={`absolute rounded-full pointer-events-none ${ember.size}`}
-            style={{
-              left: ember.left,
-              top: ember.top,
-              backgroundColor: ember.color,
-              boxShadow: `0 0 14px ${ember.color}`,
-            }}
-            animate={{
-              y: [0, ember.dy, 0],
-              x: [0, ember.dx, 0],
-              scale: [0.9, 1.25, 0.9],
-              opacity: [0.35, 0.85, 0.35],
-            }}
-            transition={{
-              duration: 9 + idx * 1.4,
-              repeat: Infinity,
-              delay: ember.delay,
-              ease: 'easeInOut',
-            }}
-          />
-        ))}
-
-        {/* Unified Synaptic & Particle Canvas */}
         <canvas
           ref={canvasRef}
           data-testid="neural-canvas"
