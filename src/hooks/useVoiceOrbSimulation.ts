@@ -11,9 +11,25 @@ export const VOICE_ORB_TONE_HEX: Record<VoiceOrbState, string> = {
   speak: '#f59e0b',
 };
 
+export type AudioRippleKind = 'speaking' | 'listening_finished';
+
 export function getNextVoiceOrbState(current: VoiceOrbState): VoiceOrbState {
   const idx = VOICE_ORB_STATE_ORDER.indexOf(current);
   return VOICE_ORB_STATE_ORDER[(idx + 1) % VOICE_ORB_STATE_ORDER.length];
+}
+
+export function resolveAudioRippleEvent(
+  prevState: VoiceOrbState,
+  nextState: VoiceOrbState
+): AudioRippleKind | null {
+  if (prevState === nextState) return null;
+  if (nextState === 'speak') {
+    return 'speaking';
+  }
+  if (prevState === 'listen' && (nextState === 'process' || nextState === 'idle')) {
+    return 'listening_finished';
+  }
+  return null;
 }
 
 export function useVoiceOrbSimulation(initialState: VoiceOrbState = 'idle') {

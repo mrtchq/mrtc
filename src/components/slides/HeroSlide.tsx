@@ -3,12 +3,17 @@ import { motion, useTransform, type MotionValue } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
 import { dispatchParticleBurst } from '../NeuralParticleField';
 import { VoiceOrb } from '../VoiceOrb';
+import type { VoiceOrbState } from '../../hooks/useVoiceOrbSimulation';
 import { useVoiceOrbSimulation } from '../../hooks/useVoiceOrbSimulation';
 
 interface HeroSlideProps {
   isActive: boolean;
   onSelectSlide: (index: number) => void;
   parallaxProgress: MotionValue<number>;
+  isLiveVoiceActive?: boolean;
+  isLiveVoiceConnecting?: boolean;
+  liveOrbState?: VoiceOrbState;
+  onToggleLiveVoice?: () => void;
 }
 
 const containerVariants = {
@@ -31,7 +36,15 @@ const itemVariants = {
   },
 };
 
-export function HeroSlide({ isActive, onSelectSlide, parallaxProgress }: HeroSlideProps) {
+export function HeroSlide({
+  isActive,
+  onSelectSlide,
+  parallaxProgress,
+  isLiveVoiceActive = false,
+  isLiveVoiceConnecting = false,
+  liveOrbState = 'idle',
+  onToggleLiveVoice,
+}: HeroSlideProps) {
   const bgOrbitX = useTransform(parallaxProgress, [0, 1], [0, 160]);
   const bgOrbitScale = useTransform(parallaxProgress, [0, 0.35], [1, 1.15]);
   const contentX = useTransform(parallaxProgress, [0, 1], [0, -60]);
@@ -45,6 +58,17 @@ export function HeroSlide({ isActive, onSelectSlide, parallaxProgress }: HeroSli
     triggerHeroButtonAction,
   } = useVoiceOrbSimulation('idle');
 
+  const voiceSessionRunning = isLiveVoiceActive || isLiveVoiceConnecting;
+  const effectiveOrbState: VoiceOrbState = voiceSessionRunning ? liveOrbState : orbState;
+
+  const handleOrbClick = () => {
+    if (onToggleLiveVoice) {
+      onToggleLiveVoice();
+    } else {
+      cycleOrbState();
+    }
+  };
+
   const handleActionClick = (
     e: React.MouseEvent<HTMLButtonElement>,
     slideIndex: number,
@@ -52,6 +76,10 @@ export function HeroSlide({ isActive, onSelectSlide, parallaxProgress }: HeroSli
   ) => {
     const rect = e.currentTarget.getBoundingClientRect();
     dispatchParticleBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, 26, colorHex);
+    if (voiceSessionRunning) {
+      onSelectSlide(slideIndex);
+      return;
+    }
     triggerHeroButtonAction(() => onSelectSlide(slideIndex));
   };
 
@@ -93,7 +121,7 @@ export function HeroSlide({ isActive, onSelectSlide, parallaxProgress }: HeroSli
                 'radial-gradient(circle, rgba(255,209,89,0.2) 0%, rgba(236,72,153,0.14) 42%, transparent 70%)',
             }}
           />
-          <VoiceOrb orbState={orbState} onOrbClick={cycleOrbState} />
+          <VoiceOrb orbState={effectiveOrbState} onOrbClick={handleOrbClick} />
         </motion.div>
 
         {/* Action Buttons Pushed Down Just Above Pagination Bar */}

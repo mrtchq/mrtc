@@ -16,7 +16,11 @@ import {
   wrapSlideIndex,
   writeWelcomeDismissed,
 } from './cognitiveEngine';
-import { getNextVoiceOrbState, VOICE_ORB_STATE_ORDER } from '../hooks/useVoiceOrbSimulation';
+import {
+  getNextVoiceOrbState,
+  resolveAudioRippleEvent,
+  VOICE_ORB_STATE_ORDER,
+} from '../hooks/useVoiceOrbSimulation';
 
 test('wrapSlideIndex wraps positively and negatively across 5 slides', () => {
   assert.equal(wrapSlideIndex(0, TOTAL_SLIDES), 0);
@@ -132,6 +136,18 @@ test('readWelcomeDismissed and writeWelcomeDismissed persist first-load state sa
   };
   assert.equal(readWelcomeDismissed(throwingStorage), false);
   assert.doesNotThrow(() => writeWelcomeDismissed(true, throwingStorage));
+});
+
+test('resolveAudioRippleEvent fires only when Voice AI starts speaking or finishes listening', () => {
+  assert.equal(resolveAudioRippleEvent('idle', 'listen'), null);
+  assert.equal(resolveAudioRippleEvent('listen', 'process'), 'listening_finished');
+  assert.equal(resolveAudioRippleEvent('listen', 'idle'), 'listening_finished');
+  assert.equal(resolveAudioRippleEvent('process', 'speak'), 'speaking');
+  assert.equal(resolveAudioRippleEvent('listen', 'speak'), 'speaking');
+  assert.equal(resolveAudioRippleEvent('idle', 'speak'), 'speaking');
+  assert.equal(resolveAudioRippleEvent('speak', 'listen'), null);
+  assert.equal(resolveAudioRippleEvent('speak', 'idle'), null);
+  assert.equal(resolveAudioRippleEvent('speak', 'speak'), null);
 });
 
 

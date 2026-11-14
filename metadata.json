@@ -1,7 +1,9 @@
 {
-  "name": "MRTC BUILDS — AI FOR ADHD",
+  "name": "MRTC BUILDS HQ",
   "description": "The World's First Neuro-Adaptive Cognitive Co-Pilot. Dual-hemisphere executive scaffolding and divergent flow architecture.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": [
+    "microphone"
+  ],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]

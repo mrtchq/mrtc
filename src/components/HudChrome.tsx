@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, useSpring, useTransform, type MotionValue } from 'motion/react';
-import { ChevronLeft, ChevronRight, HelpCircle, LogOut, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, HelpCircle, LogOut, Mic, MicOff, PhoneOff, X } from 'lucide-react';
 import { PAGE_SECTIONS, TOTAL_SLIDES } from '../utils/cognitiveEngine';
 import { dispatchParticleBurst } from './NeuralParticleField';
 import { useFirebaseAuth } from '../contexts/FirebaseContext';
+
+const SHOW_GOOGLE_SIGN_IN = false;
 
 interface HeaderHudProps {
   activeSlideIndex: number;
@@ -11,6 +13,13 @@ interface HeaderHudProps {
   parallaxProgress: MotionValue<number>;
   eegBoosted: boolean;
   onOpenWelcome: () => void;
+  accountMenuOpen?: boolean;
+  onAccountMenuOpenChange?: (open: boolean) => void;
+  isVoiceActive?: boolean;
+  isVoiceConnecting?: boolean;
+  isVoiceMuted?: boolean;
+  onToggleVoiceMute?: () => void;
+  onStopVoice?: () => void;
 }
 
 const EEG_BARS = [
@@ -51,30 +60,63 @@ export function HeaderHud({
   parallaxProgress,
   eegBoosted,
   onOpenWelcome,
+  accountMenuOpen,
+  onAccountMenuOpenChange,
+  isVoiceActive = false,
+  isVoiceConnecting = false,
+  isVoiceMuted = false,
+  onToggleVoiceMute,
+  onStopVoice,
 }: HeaderHudProps) {
   const mappedProgress = useTransform(parallaxProgress, [0, 1], [1 / TOTAL_SLIDES, 1]);
   const smoothProgress = useSpring(mappedProgress, { stiffness: 220, damping: 28, restDelta: 0.001 });
 
   const { user, authReady, authLoading, authError, signInWithGoogle, signOutUser, clearAuthError } =
     useFirebaseAuth();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [internalMenuOpen, setInternalMenuOpen] = useState(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
   const menuContainerRef = useRef<HTMLDivElement>(null);
 
+  const menuOpen = accountMenuOpen !== undefined ? accountMenuOpen : internalMenuOpen;
+  const setMenuOpen = (next: boolean | ((prev: boolean) => boolean)) => {
+    const resolved = typeof next === 'function' ? next(menuOpen) : next;
+    if (onAccountMenuOpenChange) {
+      onAccountMenuOpenChange(resolved);
+    } else {
+      setInternalMenuOpen(resolved);
+    }
+  };
+
   useEffect(() => {
     setAvatarFailed(false);
-    if (!user) setMenuOpen(false);
-  }, [user]);
+    if (!user) {
+      if (onAccountMenuOpenChange) {
+        onAccountMenuOpenChange(false);
+      } else {
+        setInternalMenuOpen(false);
+      }
+    }
+  }, [user, onAccountMenuOpenChange]);
 
   useEffect(() => {
     if (!menuOpen) return;
     const onPointerDown = (e: MouseEvent) => {
       if (menuContainerRef.current && !menuContainerRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
+        if (onAccountMenuOpenChange) {
+          onAccountMenuOpenChange(false);
+        } else {
+          setInternalMenuOpen(false);
+        }
       }
     };
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
+      if (e.key === 'Escape') {
+        if (onAccountMenuOpenChange) {
+          onAccountMenuOpenChange(false);
+        } else {
+          setInternalMenuOpen(false);
+        }
+      }
     };
     document.addEventListener('mousedown', onPointerDown);
     window.addEventListener('keydown', onKeyDown);
@@ -82,7 +124,7 @@ export function HeaderHud({
       document.removeEventListener('mousedown', onPointerDown);
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [menuOpen]);
+  }, [menuOpen, onAccountMenuOpenChange]);
 
   const userInitial = (user?.displayName || user?.email || 'U').trim().charAt(0).toUpperCase();
 
@@ -222,6 +264,43 @@ export function HeaderHud({
           </span>
         </div>
 
+        {/* Active Live Voice Session Controls (rendered only while live call is active) */}
+        {(isVoiceActive || isVoiceConnecting) && (
+          <div
+            data-testid="live-voice-header-controls"
+            className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-space-950/90 border border-chroma-cyan/40 shadow-[0_0_16px_rgba(0,229,255,0.2)]"
+          >
+            <button
+              type="button"
+              data-testid="voice-mute-btn"
+              onClick={onToggleVoiceMute}
+              disabled={isVoiceConnecting}
+              aria-label={isVoiceMuted ? 'Unmute microphone' : 'Mute microphone'}
+              title={isVoiceMuted ? 'Unmute microphone' : 'Mute microphone'}
+              className="w-7 h-7 rounded-full flex items-center justify-center text-chroma-cyan hover:text-white hover:bg-white/10 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {isVoiceMuted ? (
+                <MicOff className="w-3.5 h-3.5 text-amber-400" aria-hidden="true" />
+              ) : (
+                <Mic className="w-3.5 h-3.5" aria-hidden="true" />
+              )}
+            </button>
+            <span className="hidden sm:inline font-rajdhani text-[11px] font-bold tracking-wider uppercase text-chroma-cyan whitespace-nowrap">
+              {isVoiceConnecting ? 'Connecting' : isVoiceMuted ? 'Muted' : 'Live Voice'}
+            </span>
+            <button
+              type="button"
+              data-testid="voice-stop-btn"
+              onClick={onStopVoice}
+              aria-label="End live voice conversation"
+              title="End Voice Call"
+              className="w-7 h-7 rounded-full flex items-center justify-center text-rose-400 hover:text-white hover:bg-rose-500/25 transition-colors cursor-pointer"
+            >
+              <PhoneOff className="w-3.5 h-3.5" aria-hidden="true" />
+            </button>
+          </div>
+        )}
+
         {/* Interface Guide Trigger */}
         <button
           type="button"
@@ -235,81 +314,82 @@ export function HeaderHud({
         </button>
 
         {/* Google Sign-In Button or Signed-In Google Profile Picture */}
-        {user ? (
-          <div className="relative flex items-center">
+        {SHOW_GOOGLE_SIGN_IN &&
+          (user ? (
+            <div className="relative flex items-center">
+              <button
+                type="button"
+                data-testid="user-profile-btn"
+                onClick={() => setMenuOpen((prev) => !prev)}
+                aria-expanded={menuOpen}
+                aria-haspopup="menu"
+                aria-label={`Account menu for ${user.displayName || user.email || 'signed-in user'}`}
+                className="w-9 h-9 rounded-full p-[1.5px] bg-gradient-to-tr from-gold-400 via-chroma-cyan to-chroma-magenta shadow-[0_0_14px_rgba(0,229,255,0.35)] hover:scale-105 transition-transform cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+              >
+                {user.photoURL && !avatarFailed ? (
+                  <img
+                    src={user.photoURL}
+                    alt={user.displayName ? `${user.displayName} profile picture` : 'Google account profile picture'}
+                    referrerPolicy="no-referrer"
+                    data-testid="user-avatar-img"
+                    onError={() => setAvatarFailed(true)}
+                    className="w-full h-full rounded-full object-cover bg-space-950"
+                  />
+                ) : (
+                  <span
+                    data-testid="user-avatar-fallback"
+                    className="w-full h-full rounded-full bg-space-950 flex items-center justify-center font-orbitron text-xs font-bold text-gold-300"
+                  >
+                    {userInitial}
+                  </span>
+                )}
+              </button>
+
+              {menuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-12 w-60 rounded-xl glass-hud border border-gold-400/30 p-3 shadow-2xl z-50"
+                >
+                  <div className="pb-2.5 mb-2.5 border-b border-slate-800">
+                    <p className="text-sm font-semibold text-white truncate">
+                      {user.displayName || 'Google Account'}
+                    </p>
+                    {user.email && (
+                      <p className="text-xs text-slate-400 truncate mt-0.5">{user.email}</p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-testid="signout-btn"
+                    disabled={authLoading}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      void signOutUser();
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-orbitron tracking-wider uppercase text-slate-200 bg-space-900/90 hover:bg-space-800 border border-slate-700 hover:border-gold-400/50 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    <LogOut className="w-3.5 h-3.5 text-gold-400" aria-hidden="true" />
+                    <span>Sign out</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
             <button
               type="button"
-              data-testid="user-profile-btn"
-              onClick={() => setMenuOpen((prev) => !prev)}
-              aria-expanded={menuOpen}
-              aria-haspopup="menu"
-              aria-label={`Account menu for ${user.displayName || user.email || 'signed-in user'}`}
-              className="w-9 h-9 rounded-full p-[1.5px] bg-gradient-to-tr from-gold-400 via-chroma-cyan to-chroma-magenta shadow-[0_0_14px_rgba(0,229,255,0.35)] hover:scale-105 transition-transform cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+              data-testid="google-signin-btn"
+              disabled={!authReady || authLoading}
+              onClick={() => void signInWithGoogle()}
+              className="flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl bg-space-950/90 hover:bg-space-850 border border-gold-400/35 hover:border-gold-400 text-xs font-rajdhani font-bold tracking-wider uppercase text-slate-100 shadow-md transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-60 disabled:cursor-wait focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
             >
-              {user.photoURL && !avatarFailed ? (
-                <img
-                  src={user.photoURL}
-                  alt={user.displayName ? `${user.displayName} profile picture` : 'Google account profile picture'}
-                  referrerPolicy="no-referrer"
-                  data-testid="user-avatar-img"
-                  onError={() => setAvatarFailed(true)}
-                  className="w-full h-full rounded-full object-cover bg-space-950"
-                />
-              ) : (
-                <span
-                  data-testid="user-avatar-fallback"
-                  className="w-full h-full rounded-full bg-space-950 flex items-center justify-center font-orbitron text-xs font-bold text-gold-300"
-                >
-                  {userInitial}
-                </span>
-              )}
+              <GoogleMarkIcon />
+              <span className="hidden sm:inline">{authLoading ? 'Signing in...' : 'Sign in with Google'}</span>
+              <span className="sm:hidden">{authLoading ? '...' : 'Sign in'}</span>
             </button>
+          ))}
 
-            {menuOpen && (
-              <div
-                role="menu"
-                className="absolute right-0 top-12 w-60 rounded-xl glass-hud border border-gold-400/30 p-3 shadow-2xl z-50"
-              >
-                <div className="pb-2.5 mb-2.5 border-b border-slate-800">
-                  <p className="text-sm font-semibold text-white truncate">
-                    {user.displayName || 'Google Account'}
-                  </p>
-                  {user.email && (
-                    <p className="text-xs text-slate-400 truncate mt-0.5">{user.email}</p>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  role="menuitem"
-                  data-testid="signout-btn"
-                  disabled={authLoading}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    void signOutUser();
-                  }}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-orbitron tracking-wider uppercase text-slate-200 bg-space-900/90 hover:bg-space-800 border border-slate-700 hover:border-gold-400/50 transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  <LogOut className="w-3.5 h-3.5 text-gold-400" aria-hidden="true" />
-                  <span>Sign out</span>
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <button
-            type="button"
-            data-testid="google-signin-btn"
-            disabled={!authReady || authLoading}
-            onClick={() => void signInWithGoogle()}
-            className="flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl bg-space-950/90 hover:bg-space-850 border border-gold-400/35 hover:border-gold-400 text-xs font-rajdhani font-bold tracking-wider uppercase text-slate-100 shadow-md transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-60 disabled:cursor-wait focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
-          >
-            <GoogleMarkIcon />
-            <span className="hidden sm:inline">{authLoading ? 'Signing in...' : 'Sign in with Google'}</span>
-            <span className="sm:hidden">{authLoading ? '...' : 'Sign in'}</span>
-          </button>
-        )}
-
-        {authError && (
+        {SHOW_GOOGLE_SIGN_IN && authError && (
           <div
             role="alert"
             className="absolute right-0 top-12 w-64 rounded-xl bg-space-950 border border-chroma-magenta/50 p-2.5 text-xs text-slate-200 shadow-xl flex items-start justify-between gap-2 z-50"

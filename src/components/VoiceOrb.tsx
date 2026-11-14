@@ -115,7 +115,7 @@ export function VoiceOrb({ orbState, onOrbClick }: VoiceOrbProps) {
       <div
         className="va-orb-button"
         role="button"
-        aria-label={`Voice assistant orb: ${orbState}. Activate to cycle state.`}
+        aria-label={`Voice assistant orb: ${orbState}. Activate to start or stop live voice conversation.`}
         aria-pressed={orbState !== 'idle'}
         tabIndex={0}
         onClick={(e) => handleActivate(e.currentTarget)}

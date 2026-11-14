@@ -26,9 +26,9 @@ const INTERFACE_GUIDE_ITEMS = [
   },
   {
     index: '03',
-    title: 'Google Account Sign-In',
+    title: 'Hands-Free Voice Navigation',
     description:
-      'Use Sign in with Google in the top-right header to connect your account and display your profile menu, or reopen this interface guide anytime via the help button.',
+      'Tap the central orb to speak with the Voice Co-Pilot and jump to any sector by voice, or reopen this interface guide anytime via the help button in the top bar.',
     icon: ShieldCheck,
     accentClass: 'text-chroma-magenta border-chroma-magenta/30 bg-chroma-magenta/10',
   },

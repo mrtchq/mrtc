@@ -74,6 +74,16 @@ interface ShockwaveRipple {
   color: BrandColor;
 }
 
+interface CenterAudioRipple {
+  elapsedMs: number;
+  delayMs: number;
+  durationMs: number;
+  maxRadius: number;
+  baseAlpha: number;
+  lineWidth: number;
+  color: BrandColor;
+}
+
 interface CanvasSpark {
   x: number;
   y: number;
@@ -122,6 +132,15 @@ export function dispatchParticleBurst(x: number, y: number, count = 24, colorHex
   window.dispatchEvent(
     new CustomEvent('mrtc:burst', {
       detail: { x, y, count, colorHex },
+    })
+  );
+}
+
+export function dispatchCenterRipple(kind: 'speaking' | 'listening_finished') {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(
+    new CustomEvent('mrtc:audio-ripple', {
+      detail: { kind },
     })
   );
 }
@@ -242,12 +261,76 @@ export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParti
 
     const actionPotentials: ActionPotential[] = [];
     const ripples: ShockwaveRipple[] = [];
+    const centerAudioRipples: CenterAudioRipple[] = [];
     const sparks: CanvasSpark[] = [];
 
     const mouse = { x: -1000, y: -1000, smoothX: -1000, smoothY: -1000, active: false };
     let warpMultiplier = 1;
     let lastTrailTime = 0;
     let lastFrameTime = performance.now();
+    let audioRippleSeq = 0;
+
+    const spawnCenterAudioRipple = (kind: 'speaking' | 'listening_finished') => {
+      audioRippleSeq += 1;
+      canvas.dataset.audioRippleSeq = String(audioRippleSeq);
+      canvas.dataset.lastAudioRipple = kind;
+
+      if (prefersReducedMotion) return;
+
+      // Cap active ripples to keep frame time steady
+      while (centerAudioRipples.length >= 6) {
+        centerAudioRipples.shift();
+      }
+
+      const maxRadius = Math.max(180, Math.min(width, height) * 0.44);
+      const goldColor = BRAND_COLORS[0]; // #ffd159
+      const cyanColor = BRAND_COLORS[1]; // #00e5ff
+      const emeraldColor = BRAND_COLORS[4]; // #10b981
+
+      if (kind === 'speaking') {
+        centerAudioRipples.push(
+          {
+            elapsedMs: 0,
+            delayMs: 0,
+            durationMs: 1400,
+            maxRadius,
+            baseAlpha: 0.34,
+            lineWidth: 1.6,
+            color: goldColor,
+          },
+          {
+            elapsedMs: 0,
+            delayMs: 180,
+            durationMs: 1550,
+            maxRadius: maxRadius * 0.86,
+            baseAlpha: 0.22,
+            lineWidth: 1.1,
+            color: cyanColor,
+          }
+        );
+      } else {
+        centerAudioRipples.push(
+          {
+            elapsedMs: 0,
+            delayMs: 0,
+            durationMs: 1250,
+            maxRadius: maxRadius * 0.9,
+            baseAlpha: 0.3,
+            lineWidth: 1.4,
+            color: emeraldColor,
+          },
+          {
+            elapsedMs: 0,
+            delayMs: 160,
+            durationMs: 1400,
+            maxRadius: maxRadius * 0.74,
+            baseAlpha: 0.18,
+            lineWidth: 1.0,
+            color: cyanColor,
+          }
+        );
+      }
+    };
 
     const spawnBurst = (x: number, y: number, count: number, colorHex?: string) => {
       const matchedColor = colorHex ? BRAND_COLORS.find((c) => c.hex === colorHex) : undefined;
@@ -326,12 +409,20 @@ export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParti
       }
     };
 
+    const onAudioRipple = (e: Event) => {
+      const detail = (e as CustomEvent<{ kind?: 'speaking' | 'listening_finished' }>).detail;
+      if (detail?.kind) {
+        spawnCenterAudioRipple(detail.kind);
+      }
+    };
+
     let rafId = 0;
     let isPaused = document.hidden;
 
     const renderFrame = (now: number) => {
+      const elapsedMs = Math.min(48, Math.max(4, now - lastFrameTime));
       // Normalized delta (1 = 60fps ~ 16.67ms), clamped so tab switches never jump
-      const dtScale = Math.min(2.2, Math.max(0.4, (now - lastFrameTime) / 16.67));
+      const dtScale = Math.min(2.2, Math.max(0.4, elapsedMs / 16.67));
       lastFrameTime = now;
 
       ctx.clearRect(0, 0, width, height);
@@ -416,6 +507,34 @@ export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParti
         ctx.arc(rip.x, rip.y, rip.radius, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(${rip.color.r}, ${rip.color.g}, ${rip.color.b}, ${rip.opacity})`;
         ctx.lineWidth = 1.8;
+        ctx.stroke();
+      }
+
+      // 4b. Subtle Center-Radiating Audio Activity Ripples
+      const centerX = width * 0.5;
+      const centerY = height * 0.5;
+      for (let ar = centerAudioRipples.length - 1; ar >= 0; ar--) {
+        const rip = centerAudioRipples[ar];
+        rip.elapsedMs += elapsedMs;
+        if (rip.elapsedMs < rip.delayMs) {
+          continue;
+        }
+        const activeMs = rip.elapsedMs - rip.delayMs;
+        const t = activeMs / rip.durationMs;
+        if (t >= 1) {
+          centerAudioRipples.splice(ar, 1);
+          continue;
+        }
+
+        const eased = 1 - Math.pow(1 - t, 3);
+        const radius = 28 + (rip.maxRadius - 28) * eased;
+        const fadeIn = t < 0.14 ? t / 0.14 : 1;
+        const alpha = rip.baseAlpha * fadeIn * (1 - t);
+
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${rip.color.r}, ${rip.color.g}, ${rip.color.b}, ${alpha.toFixed(3)})`;
+        ctx.lineWidth = Math.max(0.6, rip.lineWidth * (1 - t * 0.35));
         ctx.stroke();
       }
 
@@ -602,6 +721,7 @@ export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParti
     window.addEventListener('mouseleave', onMouseLeave);
     window.addEventListener('click', onClick, { passive: true });
     window.addEventListener('mrtc:burst', onCustomBurst);
+    window.addEventListener('mrtc:audio-ripple', onAudioRipple);
     document.addEventListener('visibilitychange', onVisibilityChange);
 
     startLoop();
@@ -614,6 +734,7 @@ export function NeuralParticleField({ isWarping, parallaxProgress }: NeuralParti
       window.removeEventListener('mouseleave', onMouseLeave);
       window.removeEventListener('click', onClick);
       window.removeEventListener('mrtc:burst', onCustomBurst);
+      window.removeEventListener('mrtc:audio-ripple', onAudioRipple);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [parallaxProgress]);

@@ -65,6 +65,15 @@ async function syncUserProfileDocument(user: User) {
   }
 }
 
+function formatFirebaseAuthError(error: unknown): string {
+  const code = (error as { code?: string })?.code ?? '';
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  if (code.includes('api-key-expired') || message.includes('api-key-expired')) {
+    return 'Firebase Web API key has expired. Renew the API key in Google Cloud Console (APIs & Services > Credentials) or update your Firebase configuration.';
+  }
+  return message || 'Unable to sign in with Google.';
+}
+
 export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -72,14 +81,46 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
-    void testFirestoreConnection();
+    let active = true;
+    let connectionTested = false;
 
-    const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+    const runConnectionCheckOnce = () => {
+      if (connectionTested) return;
+      connectionTested = true;
+      void testFirestoreConnection();
+    };
+
+    const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
+      if (!active) return;
+
+      if (nextUser) {
+        try {
+          await nextUser.getIdToken();
+        } catch (tokenError) {
+          const code = (tokenError as { code?: string })?.code ?? '';
+          const msg = tokenError instanceof Error ? tokenError.message : '';
+          if (code.includes('api-key-expired') || msg.includes('api-key-expired')) {
+            await signOut(auth).catch(() => undefined);
+            if (!active) return;
+            setUser(null);
+            setAuthError(formatFirebaseAuthError(tokenError));
+            setAuthReady(true);
+            runConnectionCheckOnce();
+            return;
+          }
+        }
+      }
+
+      if (!active) return;
       setUser(nextUser);
       setAuthReady(true);
+      runConnectionCheckOnce();
     });
 
-    return () => unsubscribe();
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
@@ -99,7 +140,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
         setAuthError(null);
       } else {
-        setAuthError(error instanceof Error ? error.message : 'Unable to sign in with Google.');
+        setAuthError(formatFirebaseAuthError(error));
       }
     } finally {
       setAuthLoading(false);

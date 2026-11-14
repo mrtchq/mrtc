@@ -5,12 +5,15 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { animate, motion, MotionConfig, useMotionValue, useTransform } from 'motion/react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { NeuralParticleField } from './components/NeuralParticleField';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { dispatchCenterRipple, NeuralParticleField } from './components/NeuralParticleField';
 import { FooterHud, HeaderHud } from './components/HudChrome';
 import { CyberSlideCard } from './components/CyberSlideCard';
 import { HeroSlide } from './components/slides/HeroSlide';
 import { WelcomeModal } from './components/WelcomeModal';
+import { useFirebaseAuth } from './contexts/FirebaseContext';
+import { useGeminiLiveVoice } from './hooks/useGeminiLiveVoice';
+import { resolveAudioRippleEvent, type VoiceOrbState } from './hooks/useVoiceOrbSimulation';
 import {
   clampSlideIndex,
   PAGE_SECTIONS,
@@ -20,25 +23,71 @@ import {
   wrapSlideIndex,
   writeWelcomeDismissed,
 } from './utils/cognitiveEngine';
+import {
+  getInitialSlideIndexFromPath,
+  navigationBridge,
+} from './utils/navigationBridge';
 
 const INTERACTIVE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT', 'OPTION']);
 
 export default function App() {
-  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+  const initialSlide = getInitialSlideIndexFromPath();
+  const [activeSlideIndex, setActiveSlideIndex] = useState(initialSlide);
   const [isWarping, setIsWarping] = useState(false);
   const [isWelcomeOpen, setIsWelcomeOpen] = useState(() => !readWelcomeDismissed());
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [containerWidth, setContainerWidth] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1440
   );
 
+  const { user } = useFirebaseAuth();
+  const {
+    isLiveActive,
+    isConnecting,
+    isMuted,
+    liveOrbState,
+    lastUserTranscript,
+    lastAssistantTranscript,
+    voiceError,
+    stopVoiceSession,
+    toggleVoiceSession,
+    toggleMute,
+    clearVoiceError,
+  } = useGeminiLiveVoice();
+
   const viewportRef = useRef<HTMLElement>(null);
-  const activeIndexRef = useRef(0);
+  const activeIndexRef = useRef(initialSlide);
+  const welcomeOpenRef = useRef(isWelcomeOpen);
+  const accountMenuOpenRef = useRef(accountMenuOpen);
+  const userRef = useRef(user);
   const containerWidthRef = useRef(containerWidth);
   const trackX = useMotionValue(0);
   const animControlsRef = useRef<{ stop: () => void } | null>(null);
 
   const warpTimerRef = useRef<number | null>(null);
   const wheelCooldownRef = useRef(false);
+  const prevLiveOrbStateRef = useRef<VoiceOrbState>(liveOrbState);
+
+  useEffect(() => {
+    const prevState = prevLiveOrbStateRef.current;
+    prevLiveOrbStateRef.current = liveOrbState;
+    const rippleKind = resolveAudioRippleEvent(prevState, liveOrbState);
+    if (rippleKind) {
+      dispatchCenterRipple(rippleKind);
+    }
+  }, [liveOrbState]);
+
+  useEffect(() => {
+    welcomeOpenRef.current = isWelcomeOpen;
+  }, [isWelcomeOpen]);
+
+  useEffect(() => {
+    accountMenuOpenRef.current = accountMenuOpen;
+  }, [accountMenuOpen]);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   // Normalized [0..1] progress across the 5 horizontal slides for parallax & progress bar
   const parallaxProgress = useTransform(
@@ -79,12 +128,16 @@ export default function App() {
   }, [trackX]);
 
   const goToSlide = useCallback(
-    (nextIndex: number, options?: { silent?: boolean }) => {
+    (nextIndex: number, options?: { silent?: boolean; skipUrlSync?: boolean }) => {
       const clamped = clampSlideIndex(nextIndex, TOTAL_SLIDES);
       const changed = clamped !== activeIndexRef.current;
       activeIndexRef.current = clamped;
       setActiveSlideIndex(clamped);
       animateTrackToSlide(clamped);
+
+      if (!options?.skipUrlSync) {
+        navigationBridge.recordSlideChange(clamped, true);
+      }
 
       if (changed && !options?.silent) {
         triggerWarpEffects();
@@ -92,6 +145,74 @@ export default function App() {
     },
     [animateTrackToSlide, triggerWarpEffects]
   );
+
+  // Bind in-page NavigationBridge for mid-conversation voice navigation without reloading
+  useEffect(() => {
+    navigationBridge.bind({
+      getActiveSlideIndex: () => activeIndexRef.current,
+      goToSlide: (slideIndex) => goToSlide(slideIndex, { skipUrlSync: false }),
+      getOpenPanels: () => {
+        const panels: string[] = [];
+        if (welcomeOpenRef.current) panels.push('welcome-guide');
+        if (accountMenuOpenRef.current) panels.push('account-menu');
+        return panels;
+      },
+      openPanelById: (panelId) => {
+        if (panelId === 'welcome-guide') {
+          welcomeOpenRef.current = true;
+          setIsWelcomeOpen(true);
+          return { ok: true };
+        }
+        if (panelId === 'account-menu') {
+          if (!userRef.current) {
+            return {
+              ok: false,
+              reason: 'panel_requires_signin',
+              message:
+                'The Google Account menu is only available after signing in via the Sign in with Google button in the top-right header.',
+            };
+          }
+          accountMenuOpenRef.current = true;
+          setAccountMenuOpen(true);
+          return { ok: true };
+        }
+        return { ok: false };
+      },
+      closePanelById: (panelId) => {
+        const closed: string[] = [];
+        if ((panelId === 'welcome-guide' || panelId === 'all' || !panelId) && welcomeOpenRef.current) {
+          welcomeOpenRef.current = false;
+          writeWelcomeDismissed(true);
+          setIsWelcomeOpen(false);
+          closed.push('Interface Guide');
+        }
+        if ((panelId === 'account-menu' || panelId === 'all' || !panelId) && accountMenuOpenRef.current) {
+          accountMenuOpenRef.current = false;
+          setAccountMenuOpen(false);
+          closed.push('Google Account Menu');
+        }
+        return { ok: true, closed };
+      },
+      scrollElementIntoView: (sectionId) => {
+        const targetEl = document.getElementById(sectionId);
+        if (!targetEl) return false;
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+        return true;
+      },
+    });
+
+    const onPopState = () => {
+      const targetIndex = getInitialSlideIndexFromPath();
+      navigationBridge.syncFromPopState(targetIndex);
+      goToSlide(targetIndex, { skipUrlSync: true });
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+      navigationBridge.unbind();
+    };
+  }, [goToSlide]);
 
   const handleNextSlide = useCallback(() => {
     const next = wrapSlideIndex(activeIndexRef.current + 1, TOTAL_SLIDES);
@@ -279,6 +400,13 @@ export default function App() {
           parallaxProgress={parallaxProgress}
           eegBoosted={false}
           onOpenWelcome={() => setIsWelcomeOpen(true)}
+          accountMenuOpen={accountMenuOpen}
+          onAccountMenuOpenChange={setAccountMenuOpen}
+          isVoiceActive={isLiveActive}
+          isVoiceConnecting={isConnecting}
+          isVoiceMuted={isMuted}
+          onToggleVoiceMute={toggleMute}
+          onStopVoice={stopVoiceSession}
         />
 
         {/* Horizontal Carousel Viewport */}
@@ -325,6 +453,10 @@ export default function App() {
               isActive={activeSlideIndex === 0}
               onSelectSlide={(idx) => goToSlide(idx)}
               parallaxProgress={parallaxProgress}
+              isLiveVoiceActive={isLiveActive}
+              isLiveVoiceConnecting={isConnecting}
+              liveOrbState={liveOrbState}
+              onToggleLiveVoice={toggleVoiceSession}
             />
             {PAGE_SECTIONS.slice(1).map((section, offsetIdx) => {
               const idx = offsetIdx + 1;
@@ -345,6 +477,43 @@ export default function App() {
             })}
           </motion.div>
         </main>
+
+        {/* Subtle Active Live Voice Caption or Error Alert (only mounted during live voice feedback) */}
+        {(lastUserTranscript || lastAssistantTranscript) && isLiveActive && (
+          <div
+            data-testid="live-voice-captions"
+            aria-live="polite"
+            className="pointer-events-none fixed bottom-16 left-1/2 -translate-x-1/2 z-40 max-w-lg w-[calc(100vw-2rem)] px-4 py-2 rounded-2xl border border-chroma-cyan/30 bg-[#080814]/85 backdrop-blur-md text-center shadow-xl"
+          >
+            {lastAssistantTranscript ? (
+              <p className="text-xs sm:text-sm text-slate-100 leading-snug line-clamp-2">
+                {lastAssistantTranscript}
+              </p>
+            ) : (
+              <p className="text-xs sm:text-sm text-chroma-cyan/90 leading-snug line-clamp-2">
+                “{lastUserTranscript}”
+              </p>
+            )}
+          </div>
+        )}
+
+        {voiceError && (
+          <div
+            role="alert"
+            data-testid="live-voice-error"
+            className="fixed top-20 right-4 sm:right-6 z-50 max-w-xs rounded-xl bg-space-950/95 border border-chroma-magenta/50 p-3 text-xs text-slate-200 shadow-2xl flex items-start justify-between gap-2.5"
+          >
+            <span className="leading-snug">{voiceError}</span>
+            <button
+              type="button"
+              onClick={clearVoiceError}
+              aria-label="Dismiss voice error"
+              className="text-slate-400 hover:text-white shrink-0 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" aria-hidden="true" />
+            </button>
+          </div>
+        )}
 
         <FooterHud
           activeSlideIndex={activeSlideIndex}
