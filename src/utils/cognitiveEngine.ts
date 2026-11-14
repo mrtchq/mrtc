@@ -326,4 +326,30 @@ export function resolveSwipeNavigation(
   return clampSlideIndex(currentIndex, total);
 }
 
+export const WELCOME_MODAL_STORAGE_KEY = 'mrtc_welcome_dismissed_v1';
+
+export interface StorageLike {
+  getItem: (key: string) => string | null;
+  setItem: (key: string, value: string) => void;
+}
+
+export function readWelcomeDismissed(storage?: StorageLike | null): boolean {
+  try {
+    const target = storage ?? (typeof window !== 'undefined' ? window.localStorage : null);
+    if (!target) return false;
+    return target.getItem(WELCOME_MODAL_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function writeWelcomeDismissed(dismissed: boolean, storage?: StorageLike | null): void {
+  try {
+    const target = storage ?? (typeof window !== 'undefined' ? window.localStorage : null);
+    if (!target) return;
+    target.setItem(WELCOME_MODAL_STORAGE_KEY, dismissed ? 'true' : 'false');
+  } catch {
+    // Ignore storage quota or sandboxed iframe restrictions
+  }
+}
 

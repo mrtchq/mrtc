@@ -10,12 +10,15 @@ import { NeuralParticleField } from './components/NeuralParticleField';
 import { FooterHud, HeaderHud } from './components/HudChrome';
 import { CyberSlideCard } from './components/CyberSlideCard';
 import { HeroSlide } from './components/slides/HeroSlide';
+import { WelcomeModal } from './components/WelcomeModal';
 import {
   clampSlideIndex,
   PAGE_SECTIONS,
+  readWelcomeDismissed,
   resolveSwipeNavigation,
   TOTAL_SLIDES,
   wrapSlideIndex,
+  writeWelcomeDismissed,
 } from './utils/cognitiveEngine';
 
 const INTERACTIVE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT', 'OPTION']);
@@ -23,6 +26,7 @@ const INTERACTIVE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT', 'OPTION']);
 export default function App() {
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const [isWarping, setIsWarping] = useState(false);
+  const [isWelcomeOpen, setIsWelcomeOpen] = useState(() => !readWelcomeDismissed());
   const [containerWidth, setContainerWidth] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1440
   );
@@ -113,9 +117,10 @@ export default function App() {
     return () => window.removeEventListener('resize', measure);
   }, [trackX]);
 
-  // Keyboard ArrowLeft / ArrowRight navigation
+  // Keyboard ArrowLeft / ArrowRight navigation (paused while WelcomeModal is open)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (isWelcomeOpen) return;
       const activeTag = document.activeElement?.tagName ?? '';
       if (INTERACTIVE_TAGS.has(activeTag)) return;
       if (e.key === 'ArrowRight' || e.key === 'PageDown') {
@@ -128,15 +133,15 @@ export default function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [handleNextSlide, handlePrevSlide]);
+  }, [handleNextSlide, handlePrevSlide, isWelcomeOpen]);
 
-  // Horizontal trackpad / wheel swipe support
+  // Horizontal trackpad / wheel swipe support (paused while WelcomeModal is open)
   useEffect(() => {
     const el = viewportRef.current;
     if (!el) return;
 
     const onWheel = (e: WheelEvent) => {
-      if (wheelCooldownRef.current) return;
+      if (isWelcomeOpen || wheelCooldownRef.current) return;
       const absX = Math.abs(e.deltaX);
       const absY = Math.abs(e.deltaY);
 
@@ -155,7 +160,7 @@ export default function App() {
 
     el.addEventListener('wheel', onWheel, { passive: true });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [goToSlide]);
+  }, [goToSlide, isWelcomeOpen]);
 
   // Tactile horizontal touch & mouse pointer drag-to-swipe across slides
   const gestureRef = useRef<{
@@ -254,6 +259,11 @@ export default function App() {
     goToSlide(targetSlide);
   };
 
+  const handleDismissWelcome = useCallback(() => {
+    writeWelcomeDismissed(true);
+    setIsWelcomeOpen(false);
+  }, []);
+
   return (
     <MotionConfig reducedMotion="user">
       <div
@@ -268,6 +278,7 @@ export default function App() {
           onSelectSlide={(idx) => goToSlide(idx)}
           parallaxProgress={parallaxProgress}
           eegBoosted={false}
+          onOpenWelcome={() => setIsWelcomeOpen(true)}
         />
 
         {/* Horizontal Carousel Viewport */}
@@ -341,6 +352,8 @@ export default function App() {
           onPrevSlide={handlePrevSlide}
           onNextSlide={handleNextSlide}
         />
+
+        <WelcomeModal isOpen={isWelcomeOpen} onDismiss={handleDismissWelcome} />
       </div>
     </MotionConfig>
   );

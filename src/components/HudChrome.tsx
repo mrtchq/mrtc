@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, useSpring, useTransform, type MotionValue } from 'motion/react';
-import { ChevronLeft, ChevronRight, LogOut, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, HelpCircle, LogOut, X } from 'lucide-react';
 import { PAGE_SECTIONS, TOTAL_SLIDES } from '../utils/cognitiveEngine';
 import { dispatchParticleBurst } from './NeuralParticleField';
 import { useFirebaseAuth } from '../contexts/FirebaseContext';
@@ -10,6 +10,7 @@ interface HeaderHudProps {
   onSelectSlide: (index: number) => void;
   parallaxProgress: MotionValue<number>;
   eegBoosted: boolean;
+  onOpenWelcome: () => void;
 }
 
 const EEG_BARS = [
@@ -49,6 +50,7 @@ export function HeaderHud({
   onSelectSlide,
   parallaxProgress,
   eegBoosted,
+  onOpenWelcome,
 }: HeaderHudProps) {
   const mappedProgress = useTransform(parallaxProgress, [0, 1], [1 / TOTAL_SLIDES, 1]);
   const smoothProgress = useSpring(mappedProgress, { stiffness: 220, damping: 28, restDelta: 0.001 });
@@ -219,6 +221,18 @@ export function HeaderHud({
             {eegBoosted ? '120Hz SUPER-GAMMA' : '40Hz GAMMA'}
           </span>
         </div>
+
+        {/* Interface Guide Trigger */}
+        <button
+          type="button"
+          data-testid="open-welcome-btn"
+          onClick={onOpenWelcome}
+          aria-label="Open interface guide"
+          title="Interface Guide"
+          className="w-9 h-9 rounded-full flex items-center justify-center bg-space-950/90 hover:bg-space-850 border border-gold-400/30 hover:border-gold-400 text-slate-300 hover:text-gold-300 transition-colors shrink-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+        >
+          <HelpCircle className="w-4 h-4" aria-hidden="true" />
+        </button>
 
         {/* Google Sign-In Button or Signed-In Google Profile Picture */}
         {user ? (

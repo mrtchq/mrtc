@@ -9,9 +9,12 @@ import {
   clampSlideIndex,
   formatSectorLabel,
   getSlideIndexById,
+  readWelcomeDismissed,
   resolveSwipeNavigation,
   validateWaitlistForm,
+  WELCOME_MODAL_STORAGE_KEY,
   wrapSlideIndex,
+  writeWelcomeDismissed,
 } from './cognitiveEngine';
 import { getNextVoiceOrbState, VOICE_ORB_STATE_ORDER } from '../hooks/useVoiceOrbSimulation';
 
@@ -101,5 +104,35 @@ test('getNextVoiceOrbState cycles cleanly through idle, listen, process, and spe
   assert.equal(getNextVoiceOrbState('process'), 'speak');
   assert.equal(getNextVoiceOrbState('speak'), 'idle');
 });
+
+test('readWelcomeDismissed and writeWelcomeDismissed persist first-load state safely', () => {
+  const store = new Map<string, string>();
+  const mockStorage = {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      store.set(key, value);
+    },
+  };
+
+  assert.equal(readWelcomeDismissed(mockStorage), false);
+  writeWelcomeDismissed(true, mockStorage);
+  assert.equal(store.get(WELCOME_MODAL_STORAGE_KEY), 'true');
+  assert.equal(readWelcomeDismissed(mockStorage), true);
+
+  writeWelcomeDismissed(false, mockStorage);
+  assert.equal(readWelcomeDismissed(mockStorage), false);
+
+  const throwingStorage = {
+    getItem: () => {
+      throw new Error('blocked');
+    },
+    setItem: () => {
+      throw new Error('blocked');
+    },
+  };
+  assert.equal(readWelcomeDismissed(throwingStorage), false);
+  assert.doesNotThrow(() => writeWelcomeDismissed(true, throwingStorage));
+});
+
 
 
