@@ -10,18 +10,16 @@ import { dispatchCenterRipple, NeuralParticleField } from './components/NeuralPa
 import { FooterHud, HeaderHud } from './components/HudChrome';
 import { CyberSlideCard } from './components/CyberSlideCard';
 import { HeroSlide } from './components/slides/HeroSlide';
-import { WelcomeModal } from './components/WelcomeModal';
+import { SplashIntro, readSplashSeen, writeSplashSeen } from './components/SplashIntro';
 import { useFirebaseAuth } from './contexts/FirebaseContext';
 import { useGeminiLiveVoice } from './hooks/useGeminiLiveVoice';
 import { resolveAudioRippleEvent, type VoiceOrbState } from './hooks/useVoiceOrbSimulation';
 import {
   clampSlideIndex,
   PAGE_SECTIONS,
-  readWelcomeDismissed,
   resolveSwipeNavigation,
   TOTAL_SLIDES,
   wrapSlideIndex,
-  writeWelcomeDismissed,
 } from './utils/cognitiveEngine';
 import {
   getInitialSlideIndexFromPath,
@@ -35,7 +33,8 @@ export default function App() {
   const initialSlide = getInitialSlideIndexFromPath();
   const [activeSlideIndex, setActiveSlideIndex] = useState(initialSlide);
   const [isWarping, setIsWarping] = useState(false);
-  const [isWelcomeOpen, setIsWelcomeOpen] = useState(() => !readWelcomeDismissed());
+  const [splashDone, setSplashDone] = useState(() => initialSlide !== 0 || readSplashSeen());
+  const handleSplashComplete = useCallback(() => { writeSplashSeen(); setSplashDone(true); }, []);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [containerWidth, setContainerWidth] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1440
@@ -61,7 +60,6 @@ export default function App() {
 
   const viewportRef = useRef<HTMLElement>(null);
   const activeIndexRef = useRef(initialSlide);
-  const welcomeOpenRef = useRef(isWelcomeOpen);
   const accountMenuOpenRef = useRef(accountMenuOpen);
   const userRef = useRef(user);
   const containerWidthRef = useRef(containerWidth);
@@ -115,10 +113,6 @@ export default function App() {
       dispatchCenterRipple(rippleKind);
     }
   }, [liveOrbState]);
-
-  useEffect(() => {
-    welcomeOpenRef.current = isWelcomeOpen;
-  }, [isWelcomeOpen]);
 
   useEffect(() => {
     accountMenuOpenRef.current = accountMenuOpen;
@@ -196,16 +190,10 @@ export default function App() {
       goToSlide: (slideIndex) => goToSlide(slideIndex, { skipUrlSync: false }),
       getOpenPanels: () => {
         const panels: string[] = [];
-        if (welcomeOpenRef.current) panels.push('welcome-guide');
         if (accountMenuOpenRef.current) panels.push('account-menu');
         return panels;
       },
       openPanelById: (panelId) => {
-        if (panelId === 'welcome-guide') {
-          welcomeOpenRef.current = true;
-          setIsWelcomeOpen(true);
-          return { ok: true };
-        }
         if (panelId === 'account-menu') {
           if (!userRef.current) {
             return {
@@ -223,12 +211,6 @@ export default function App() {
       },
       closePanelById: (panelId) => {
         const closed: string[] = [];
-        if ((panelId === 'welcome-guide' || panelId === 'all' || !panelId) && welcomeOpenRef.current) {
-          welcomeOpenRef.current = false;
-          writeWelcomeDismissed(true);
-          setIsWelcomeOpen(false);
-          closed.push('Interface Guide');
-        }
         if ((panelId === 'account-menu' || panelId === 'all' || !panelId) && accountMenuOpenRef.current) {
           accountMenuOpenRef.current = false;
           setAccountMenuOpen(false);
@@ -281,10 +263,9 @@ export default function App() {
     return () => window.removeEventListener('resize', measure);
   }, [trackX]);
 
-  // Keyboard ArrowLeft / ArrowRight navigation (paused while WelcomeModal is open)
+  // Keyboard ArrowLeft / ArrowRight navigation
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (isWelcomeOpen) return;
       const activeTag = document.activeElement?.tagName ?? '';
       if (INTERACTIVE_TAGS.has(activeTag)) return;
       if (e.key === 'ArrowRight' || e.key === 'PageDown') {
@@ -297,15 +278,15 @@ export default function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [handleNextSlide, handlePrevSlide, isWelcomeOpen]);
+  }, [handleNextSlide, handlePrevSlide]);
 
-  // Horizontal trackpad / wheel swipe support (paused while WelcomeModal is open)
+  // Horizontal trackpad / wheel swipe support
   useEffect(() => {
     const el = viewportRef.current;
     if (!el) return;
 
     const onWheel = (e: WheelEvent) => {
-      if (isWelcomeOpen || wheelCooldownRef.current) return;
+      if (wheelCooldownRef.current) return;
       const absX = Math.abs(e.deltaX);
       const absY = Math.abs(e.deltaY);
 
@@ -324,7 +305,7 @@ export default function App() {
 
     el.addEventListener('wheel', onWheel, { passive: true });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [goToSlide, isWelcomeOpen]);
+  }, [goToSlide]);
 
   // Tactile horizontal touch & mouse pointer drag-to-swipe across slides
   const gestureRef = useRef<{
@@ -423,11 +404,6 @@ export default function App() {
     goToSlide(targetSlide);
   };
 
-  const handleDismissWelcome = useCallback(() => {
-    writeWelcomeDismissed(true);
-    setIsWelcomeOpen(false);
-  }, []);
-
   return (
     <MotionConfig reducedMotion="user">
       <div
@@ -441,7 +417,6 @@ export default function App() {
           activeSlideIndex={activeSlideIndex}
           onSelectSlide={(idx) => goToSlide(idx)}
           parallaxProgress={parallaxProgress}
-          onOpenWelcome={() => setIsWelcomeOpen(true)}
           accountMenuOpen={accountMenuOpen}
           onAccountMenuOpenChange={setAccountMenuOpen}
           isVoiceActive={isLiveActive}
@@ -512,7 +487,7 @@ export default function App() {
             className="flex w-full h-full will-change-transform"
           >
             <HeroSlide
-              isActive={activeSlideIndex === 0}
+              isActive={splashDone && activeSlideIndex === 0}
               onSelectSlide={(idx) => goToSlide(idx)}
               parallaxProgress={parallaxProgress}
               isLiveVoiceActive={isLiveActive}
@@ -584,7 +559,7 @@ export default function App() {
           onNextSlide={handleNextSlide}
         />
 
-        <WelcomeModal isOpen={isWelcomeOpen} onDismiss={handleDismissWelcome} />
+        {!splashDone && initialSlide === 0 && (<SplashIntro onComplete={handleSplashComplete} />)}
       </div>
     </MotionConfig>
   );

@@ -749,7 +749,7 @@ body,
    Multi-State Interactive Voice Orb (Idle, Listen, Think, Speak)
    ========================================================= */
 .va-orb-wrap {
-  --va-size: clamp(13.5rem, 38dvh, 22rem);
+  --va-size: clamp(7rem, 20dvh, 11rem);
   --va-idle: #06b6d4;
   --va-listen: #10b981;
   --va-process: #8b5cf6;
@@ -1228,5 +1228,24 @@ body,
   }
   50% {
     transform: scale(1.15);
+  }
+}
+
+/* =========================================================
+   Announcement marquee (slide 1, above the orb)
+   ========================================================= */
+.marquee-track {
+  animation: marquee-scroll 32s linear infinite;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
   }
 }

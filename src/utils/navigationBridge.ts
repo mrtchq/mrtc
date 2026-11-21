@@ -11,7 +11,7 @@ export interface SiteRouteSpec {
 }
 
 export interface SitePanelSpec {
-  id: 'welcome-guide' | 'account-menu';
+  id: 'account-menu';
   label: string;
   summary: string;
   aliases: string[];
@@ -136,23 +136,6 @@ export const SITE_ROUTES: SiteRouteSpec[] = [
 ];
 
 export const SITE_PANELS: SitePanelSpec[] = [
-  {
-    id: 'welcome-guide',
-    label: 'Interface Guide',
-    summary: 'The glass-morphic welcome modal explaining the Voice Orb, five-sector navigation, and Google sign-in.',
-    aliases: [
-      'welcome-guide',
-      'welcome guide',
-      'welcome',
-      'welcome modal',
-      'interface guide',
-      'guide',
-      'help',
-      'tutorial',
-      'onboarding',
-      'how it works',
-    ],
-  },
   {
     id: 'account-menu',
     label: 'Google Account Menu',

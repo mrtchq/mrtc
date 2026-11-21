@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, useSpring, useTransform, type MotionValue } from 'motion/react';
-import { ChevronLeft, ChevronRight, HelpCircle, LogOut, Mic, MicOff, PhoneOff, X } from 'lucide-react';
-import { PAGE_SECTIONS, TOTAL_SLIDES } from '../utils/cognitiveEngine';
-import { dispatchParticleBurst } from './NeuralParticleField';
+import { LogOut, Mic, MicOff, PhoneOff, X } from 'lucide-react';
+import { TOTAL_SLIDES } from '../utils/cognitiveEngine';
 import { useFirebaseAuth } from '../contexts/FirebaseContext';
 
 const SHOW_GOOGLE_SIGN_IN = false;
@@ -11,7 +10,6 @@ interface HeaderHudProps {
   activeSlideIndex: number;
   onSelectSlide: (index: number) => void;
   parallaxProgress: MotionValue<number>;
-  onOpenWelcome: () => void;
   accountMenuOpen?: boolean;
   onAccountMenuOpenChange?: (open: boolean) => void;
   isVoiceActive?: boolean;
@@ -48,7 +46,6 @@ export function HeaderHud({
   activeSlideIndex,
   onSelectSlide,
   parallaxProgress,
-  onOpenWelcome,
   accountMenuOpen,
   onAccountMenuOpenChange,
   isVoiceActive = false,
@@ -192,33 +189,6 @@ export function HeaderHud({
         </div>
       </button>
 
-      {/* Horizontal Sector Navigation Links */}
-      <nav aria-label="Primary Navigation" className="hidden md:flex items-center gap-6">
-        {PAGE_SECTIONS.map((section, idx) => {
-          const isActive = idx === activeSlideIndex;
-          return (
-            <button
-              key={section.id}
-              type="button"
-              onClick={() => onSelectSlide(idx)}
-              aria-current={isActive ? 'step' : undefined}
-              className={`relative py-1.5 font-rajdhani text-sm tracking-widest uppercase whitespace-nowrap shrink-0 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400 rounded ${
-                isActive ? 'text-gold-300 font-bold' : 'text-slate-300 hover:text-white'
-              }`}
-            >
-              <span>{section.navLabel}</span>
-              {isActive && (
-                <motion.span
-                  layoutId="activeNavIndicator"
-                  transition={{ type: 'spring', stiffness: 420, damping: 30 }}
-                  className="absolute left-0 right-0 -bottom-0.5 h-[2px] rounded-full bg-gradient-to-r from-gold-400 via-chroma-cyan to-chroma-magenta"
-                />
-              )}
-            </button>
-          );
-        })}
-      </nav>
-
       {/* Top-Right Controls */}
       <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 relative" ref={menuContainerRef}>
         {/* Active Live Voice Session Controls (rendered only while live call is active) */}
@@ -257,18 +227,6 @@ export function HeaderHud({
             </button>
           </div>
         )}
-
-        {/* Interface Guide Trigger */}        {/* Interface Guide Trigger */}
-        <button
-          type="button"
-          data-testid="open-welcome-btn"
-          onClick={onOpenWelcome}
-          aria-label="Open interface guide"
-          title="Interface Guide"
-          className="w-9 h-9 rounded-full flex items-center justify-center bg-space-950/90 hover:bg-space-850 border border-gold-400/30 hover:border-gold-400 text-slate-300 hover:text-gold-300 transition-colors shrink-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
-        >
-          <HelpCircle className="w-4 h-4" aria-hidden="true" />
-        </button>
 
         {/* Google Sign-In Button        {/* Google Sign-In Button or Signed-In Google Profile Picture */}
         {SHOW_GOOGLE_SIGN_IN &&
@@ -382,94 +340,8 @@ interface FooterHudProps {
   onNextSlide: () => void;
 }
 
-export function FooterHud({ activeSlideIndex, onSelectSlide, onPrevSlide, onNextSlide }: FooterHudProps) {
+export function FooterHud(_props: FooterHudProps) {
   return (
-    <footer className="relative z-30 shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 border-t border-gold-400/20 bg-[#080811]/95 grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3">
-      {/* Sector Coordinates & Status */}
-      <div className="justify-self-start flex items-center space-x-3 font-rajdhani text-[11px] sm:text-xs tracking-widest text-slate-400 min-w-0">
-        <span data-testid="sector-display" className="gold-gradient-text font-bold font-orbitron tabular-nums whitespace-nowrap">
-          <span className="hidden sm:inline">SECTOR </span>
-          {String(activeSlideIndex + 1).padStart(2, '0')} / {String(TOTAL_SLIDES).padStart(2, '0')}
-        </span>
-        <span className="hidden lg:inline text-slate-700">|</span>
-        <span className="hidden lg:inline text-slate-300 whitespace-nowrap">DUAL-SYNAPSE OS v2.4</span>
-      </div>
-
-      {/* Bottom-Center Carousel Controls & Glowing Slide Dot Indicators */}
-      <div className="justify-self-center flex items-center space-x-1 sm:space-x-3">
-        <motion.button
-          type="button"
-          onClick={onPrevSlide}
-          whileTap={{ scale: 0.9 }}
-          aria-label="Previous Sector"
-          className="p-1.5 rounded-lg bg-space-900/90 border border-slate-700/80 hover:border-gold-400 text-gold-300 hover:text-white transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
-        >
-          <ChevronLeft className="w-4 h-4" aria-hidden="true" />
-        </motion.button>
-
-        <div
-          className="flex items-center space-x-0.5 sm:space-x-1.5"
-          role="tablist"
-          aria-label="Slide Indicators"
-          data-testid="slide-dot-indicators"
-        >
-          {PAGE_SECTIONS.map((section, idx) => {
-            const isActive = idx === activeSlideIndex;
-            return (
-              <button
-                key={section.id}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                aria-label={`Go to slide ${idx + 1}: ${section.navLabel}`}
-                data-testid={`slide-dot-${idx + 1}`}
-                data-active={isActive ? 'true' : 'false'}
-                onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  dispatchParticleBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, 12, '#00e5ff');
-                  onSelectSlide(idx);
-                }}
-                className="group relative w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
-              >
-                {isActive ? (
-                  <>
-                    <span
-                      aria-hidden="true"
-                      className="slide-dot-pulse-ring absolute w-3 h-3 rounded-full border border-chroma-cyan/80 bg-gold-400/25 shadow-[0_0_10px_rgba(0,229,255,0.65)] pointer-events-none"
-                    />
-                    <span
-                      aria-hidden="true"
-                      className="slide-dot-pulse-core relative w-2.5 h-2.5 rounded-full bg-gradient-to-br from-gold-300 via-chroma-cyan to-chroma-magenta shadow-[0_0_12px_rgba(0,229,255,0.9),0_0_20px_rgba(255,209,89,0.65)]"
-                    />
-                  </>
-                ) : (
-                  <span
-                    aria-hidden="true"
-                    className="w-2 h-2 rounded-full bg-gold-300/45 border border-gold-300/35 shadow-[0_0_8px_rgba(255,209,89,0.32)] transition-all duration-200 group-hover:scale-125 group-hover:bg-gold-300 group-hover:shadow-[0_0_12px_rgba(255,209,89,0.75)]"
-                  />
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        <motion.button
-          type="button"
-          onClick={onNextSlide}
-          whileTap={{ scale: 0.9 }}
-          aria-label="Next Sector"
-          className="p-1.5 rounded-lg bg-space-900/90 border border-slate-700/80 hover:border-gold-400 text-gold-300 hover:text-white transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
-        >
-          <ChevronRight className="w-4 h-4" aria-hidden="true" />
-        </motion.button>
-      </div>
-
-      {/* Keyboard & Swipe Shortcut Hint */}
-      <div className="justify-self-end hidden sm:flex font-rajdhani text-xs text-slate-400 tracking-wider items-center space-x-2 shrink-0">
-        <span className="px-1.5 py-0.5 rounded bg-space-950 border border-slate-700 text-gold-300 text-[10px]">←</span>
-        <span className="px-1.5 py-0.5 rounded bg-space-950 border border-slate-700 text-gold-300 text-[10px]">→</span>
-        <span className="whitespace-nowrap">SWIPE OR KEYS TO NAVIGATE</span>
-      </div>
-    </footer>
+    <footer aria-hidden="true" className="relative z-30 shrink-0 h-10 sm:h-12 border-t border-gold-400/20 bg-[#080811]/95" />
   );
 }

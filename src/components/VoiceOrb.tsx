@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { motion, useMotionValue, useReducedMotion, useSpring } from 'motion/react';
+import { gsap, useGSAP } from '../lib/gsap';
 import { dispatchParticleBurst } from './NeuralParticleField';
 import {
   getNextVoiceOrbState,
@@ -15,7 +16,34 @@ interface VoiceOrbProps {
 
 export function VoiceOrb({ orbState, onOrbClick }: VoiceOrbProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
+  const pulseRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
+
+  useGSAP(() => {
+    const stateConfig = {
+      idle: { scale: 1.025, dur: 1.9, glow: 0.8, glow2: 0.65 },
+      listen: { scale: 1.05, dur: 0.6, glow: 1.0, glow2: 0.8 },
+      process: { scale: 1.04, dur: 1.3, glow: 0.9, glow2: 0.9 },
+      speak: { scale: 1.06, dur: 0.38, glow: 1.0, glow2: 0.85 },
+    } as const;
+    const cfg = stateConfig[orbState];
+    const mm = gsap.matchMedia();
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      gsap.fromTo(
+        '.va-gsap-pulse',
+        { scale: 0.97 },
+        { scale: cfg.scale, duration: cfg.dur, ease: 'sine.inOut', yoyo: true, repeat: -1 }
+      );
+      gsap.to('.va-glow', { opacity: cfg.glow, duration: 0.6, ease: 'power2.out' });
+      gsap.to('.va-glow-secondary', { opacity: cfg.glow2, duration: 0.6, ease: 'power2.out' });
+    });
+    mm.add('(prefers-reduced-motion: reduce)', () => {
+      gsap.set('.va-gsap-pulse', { scale: 1 });
+      gsap.set('.va-glow', { opacity: cfg.glow });
+      gsap.set('.va-glow-secondary', { opacity: cfg.glow2 });
+    });
+    return () => mm.revert();
+  }, { scope: wrapRef, dependencies: [orbState], revertOnUpdate: true });
 
   const rawX = useMotionValue(0);
   const rawY = useMotionValue(0);
@@ -134,6 +162,7 @@ export function VoiceOrb({ orbState, onOrbClick }: VoiceOrbProps) {
           }}
           className="will-change-transform"
         >
+          <div ref={pulseRef} className="va-gsap-pulse" style={{ willChange: 'transform' }}>
           <div className="va-orb">
             <div className="va-core" />
             <div className="va-glow" />
@@ -226,6 +255,7 @@ export function VoiceOrb({ orbState, onOrbClick }: VoiceOrbProps) {
                 </svg>
               </div>
             </div>
+          </div>
           </div>
         </motion.div>
 
